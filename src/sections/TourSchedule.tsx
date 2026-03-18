@@ -73,16 +73,22 @@ const TourSchedule = () => {
     <section
       id="roadmap"
       ref={sectionRef}
-      className="relative w-full min-h-screen bg-[#9DC4FF] py-20 overflow-hidden"
+      className="relative w-full min-h-screen bg-gradient-to-br from-[#9DC4FF] via-[#B8D5FF] to-[#9DC4FF] py-20 overflow-hidden"
     >
+      {/* Decorative background flare */}
+      <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.2),transparent_70%)] pointer-events-none" />
       {/* Rotating vinyl disc - Hidden on small mobile */}
       {tourScheduleConfig.vinylImage && (
-        <div className="absolute top-20 right-20 w-64 h-64 md:w-80 md:h-80 z-10 opacity-80 hidden sm:block">
-          <img
-            src={tourScheduleConfig.vinylImage}
-            alt="Vinyl Disc"
-            className="w-full h-full animate-spin-slow"
-          />
+        <div className="absolute top-20 right-20 w-64 h-64 md:w-80 md:h-80 z-10 opacity-60 hidden sm:block">
+          <div className="w-full h-full rounded-full overflow-hidden border-8 border-[#1F1F1F]/10 shadow-2xl relative">
+            <img
+              src={tourScheduleConfig.vinylImage}
+              alt="Vinyl Disc"
+              className="w-full h-full object-cover animate-spin-slow"
+            />
+            {/* Vinyl hole */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-[#9DC4FF] rounded-full border border-[#1F1F1F]/20" />
+          </div>
         </div>
       )}
 
@@ -98,17 +104,17 @@ const TourSchedule = () => {
           </h2>
         </div>
 
-        {/* Two-column layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+        {/* Two-column layout - Balanced for desktop */}
+        <div className="grid grid-cols-1 lg:grid-cols-[0.8fr_1.2fr] gap-16 lg:gap-24">
           {/* Left: Venue preview */}
           {TOUR_DATES.length > 0 && (
             <div className="hidden lg:flex lg:items-center">
-              <div className="sticky top-32 w-full aspect-[4/3] rounded-2xl overflow-hidden bg-[#1F1F1F]/10">
-                <img
-                  src={TOUR_DATES[activeVenue]?.image}
-                  alt={TOUR_DATES[activeVenue]?.venue}
-                  className="w-full h-full object-cover transition-opacity duration-500"
-                />
+                <div className="sticky top-32 w-full aspect-square rounded-2xl overflow-hidden bg-[#1F1F1F]/10 border border-[#1F1F1F]/5 shadow-2xl">
+                  <img
+                    src={TOUR_DATES[activeVenue]?.image}
+                    alt={TOUR_DATES[activeVenue]?.venue}
+                    className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                  />
 
                 {/* Venue info overlay */}
                 <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-[#1F1F1F] to-transparent">
@@ -131,11 +137,11 @@ const TourSchedule = () => {
               return (
                 <div
                   key={tour.id}
-                  className="tour-item group relative p-6 rounded-xl bg-white/50 backdrop-blur-sm border border-[#1F1F1F]/10 hover:bg-white/80 transition-all duration-300 cursor-pointer"
+                  className="tour-item group relative p-8 rounded-2xl bg-white/40 backdrop-blur-md border border-white/40 hover:bg-white/60 hover:border-white/60 transition-all duration-500 cursor-pointer shadow-sm hover:shadow-xl"
                   onMouseEnter={() => setActiveVenue(index)}
                   onMouseLeave={() => setActiveVenue(0)}
                 >
-                  <div className="flex flex-col md:flex-row md:items-center gap-4">
+                  <div className="flex flex-col md:flex-row md:items-center gap-6">
                     {/* Date */}
                     <div className="flex-shrink-0 w-full md:w-28 mb-2 md:mb-0">
                       <p className="font-mono-custom text-xl md:text-2xl font-bold text-[#1F1F1F]">
@@ -157,12 +163,6 @@ const TourSchedule = () => {
                       <p className="text-sm text-[#1F1F1F]/60 ml-6">
                         {tour.venue}
                       </p>
-                    </div>
-
-                    {/* Time */}
-                    <div className="flex items-center gap-2 text-[#1F1F1F]/60">
-                      <Clock className="w-4 h-4" />
-                      <span className="font-mono-custom text-sm">{tour.time}</span>
                     </div>
 
                     {/* Status and Action */}
