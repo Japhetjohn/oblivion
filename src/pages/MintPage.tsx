@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Wallet, Shield, Zap, Globe } from 'lucide-react';
 import { tourScheduleConfig } from '../config';
 
@@ -11,21 +11,61 @@ const MintPage = ({ onBack }: MintPageProps) => {
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [mintCount, setMintCount] = useState(1);
 
+  // Auto-connect if redirected or already in Phantom browser
+  useEffect(() => {
+    const handleAutoConnect = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const shouldConnect = params.get('connect') === 'true';
+      const provider = (window as any).solana;
+
+      if ((shouldConnect || provider?.isPhantom) && !walletAddress) {
+        try {
+          setIsConnecting(true);
+          const resp = await provider.connect();
+          setWalletAddress(resp.publicKey.toString());
+        } catch (err) {
+          console.error('Connection failed:', err);
+        } finally {
+          setIsConnecting(false);
+        }
+      }
+    };
+
+    handleAutoConnect();
+  }, [walletAddress]);
+
   // Deep Link Logic for Phantom Mobile
-  const connectWallet = () => {
+  const connectWallet = async () => {
+    const provider = (window as any).solana;
+
+    // 1. If provider exists (we're in Phantom browser), connect directly
+    if (provider?.isPhantom) {
+      try {
+        setIsConnecting(true);
+        const resp = await provider.connect();
+        setWalletAddress(resp.publicKey.toString());
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setIsConnecting(false);
+      }
+      return;
+    }
+
+    // 2. If on mobile and no provider, deep link to Phantom Browser
     const isMobile = /iPhone|iPad|iObject|Android/i.test(navigator.userAgent);
-    
     if (isMobile) {
-      // Deep link to open in Phantom Browser
       const host = window.location.host;
       const protocol = window.location.protocol;
-      const currentUrl = `${protocol}//${host}`;
-      const phantomLink = `https://phantom.app/ul/browse/${currentUrl}?ref=${currentUrl}`;
+      const pathname = window.location.pathname;
+      // Add ?connect=true to trigger the useEffect on arrival
+      const currentUrl = encodeURIComponent(`${protocol}//${host}${pathname}?connect=true`);
+      const phantomLink = `https://phantom.app/ul/browse/${currentUrl}?ref=${protocol}//${host}`;
       window.location.href = phantomLink;
       return;
     }
 
-    // Mock desktop connection for now
+    // 3. Desktop fallback (Mock for now, or real if extension exists)
     setIsConnecting(true);
     setTimeout(() => {
       setWalletAddress('8xJ...z9P');
