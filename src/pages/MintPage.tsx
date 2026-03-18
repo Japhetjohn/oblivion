@@ -55,12 +55,11 @@ const MintPage = ({ onBack }: MintPageProps) => {
     // 2. If on mobile and no provider, deep link to Phantom Browser
     const isMobile = /iPhone|iPad|iObject|Android/i.test(navigator.userAgent);
     if (isMobile) {
-      const host = window.location.host;
-      const protocol = window.location.protocol;
-      const pathname = window.location.pathname;
-      // Add ?connect=true to trigger the useEffect on arrival
-      const currentUrl = encodeURIComponent(`${protocol}//${host}${pathname}?connect=true`);
-      const phantomLink = `https://phantom.app/ul/browse/${currentUrl}?ref=${protocol}//${host}`;
+      const currentUrl = window.location.href;
+      // Append connect=true if not already present
+      const joiner = currentUrl.includes('?') ? '&' : '?';
+      const redirectUrl = encodeURIComponent(`${currentUrl}${currentUrl.includes('connect=true') ? '' : joiner + 'connect=true'}`);
+      const phantomLink = `https://phantom.app/ul/browse/${redirectUrl}?ref=${encodeURIComponent(window.location.origin)}`;
       window.location.href = phantomLink;
       return;
     }
@@ -71,6 +70,10 @@ const MintPage = ({ onBack }: MintPageProps) => {
       setWalletAddress('8xJ...z9P');
       setIsConnecting(false);
     }, 1500);
+  };
+
+  const formatAddress = (addr: string) => {
+    return `${addr.slice(0, 3)}...${addr.slice(-3)}`;
   };
 
   const activeNFT = tourScheduleConfig.tourDates[0]; // Assuming first is the active one for now
@@ -101,7 +104,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
           ) : (
             <Wallet className="w-4 h-4" />
           )}
-          <span>{walletAddress ? `${walletAddress}` : 'Connect Wallet'}</span>
+          <span>{walletAddress ? formatAddress(walletAddress) : 'Connect Wallet'}</span>
         </button>
       </nav>
 
