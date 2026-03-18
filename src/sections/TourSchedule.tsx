@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { MapPin, Clock, Ticket, ExternalLink } from 'lucide-react';
+import { MapPin, Ticket, ExternalLink } from 'lucide-react';
 import { tourScheduleConfig } from '../config';
 
 gsap.registerPlugin(ScrollTrigger);
