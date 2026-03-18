@@ -36,7 +36,7 @@ const Footer = () => {
           start: 'top bottom',
           end: 'bottom top',
           scrub: 1,
-          onUpdate: (self) => {
+          onUpdate: (self: ScrollTrigger) => {
             if (titleRef.current) {
               // Title moves faster than portrait
               gsap.set(titleRef.current, {
@@ -51,7 +51,7 @@ const Footer = () => {
 
     return () => {
       ctx.revert();
-      scrollTriggerRefs.current.forEach(st => st.kill());
+      scrollTriggerRefs.current.forEach((st: ScrollTrigger) => st.kill());
       scrollTriggerRefs.current = [];
     };
   }, []);
