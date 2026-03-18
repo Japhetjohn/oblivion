@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
-import { Play, Music, Disc, Calendar } from 'lucide-react';
+import { Library, Image, Map, Users } from 'lucide-react';
 import { heroConfig } from '../config';
 
 const ICON_MAP = {
-  disc: Disc,
-  play: Play,
-  calendar: Calendar,
-  music: Music,
+  collection: Library,
+  gallery: Image,
+  roadmap: Map,
+  community: Users,
 };
 
 const Hero = () => {
@@ -114,7 +114,7 @@ const Hero = () => {
                 className="flex items-center gap-2 px-4 py-2 text-xs font-mono-custom uppercase tracking-wider text-white/80 hover:text-white transition-colors rounded-full hover:bg-white/5"
               >
                 <IconComponent className="w-3.5 h-3.5" />
-                <span>{item.label}</span>
+                <span className="hidden md:inline">{item.label}</span>
               </button>
             );
           })}
@@ -124,19 +124,19 @@ const Hero = () => {
       {/* Hero content */}
       <div className="relative z-10 flex flex-col items-center justify-end h-full pb-20 px-4">
         {/* Logo / Brand */}
-        <div className="absolute top-8 left-8">
+        <div className="absolute top-6 left-6 md:top-8 md:left-8">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center border border-neon-cyan/30">
+            <div className="w-6 h-6 md:w-8 md:h-8 rounded-full overflow-hidden flex items-center justify-center border border-neon-cyan/30">
               <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover" />
             </div>
-            <span className="font-display text-lg text-white">{heroConfig.brandName}</span>
+            <span className="font-display text-base md:text-lg text-white">{heroConfig.brandName}</span>
           </div>
         </div>
 
         {/* Main title with decode effect */}
         <h1
           ref={titleRef}
-          className="decode-text text-[12vw] md:text-[10vw] lg:text-[8vw] font-bold text-white leading-none tracking-tighter mb-4"
+          className="decode-text text-[14vw] md:text-[10vw] lg:text-[8vw] font-bold text-white leading-none tracking-tighter mb-4 text-center"
         >
           <span className={`${isDecoding ? 'text-glow-cyan' : ''} transition-all duration-300`}>
             {displayText}

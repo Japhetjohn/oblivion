@@ -75,9 +75,9 @@ const TourSchedule = () => {
       ref={sectionRef}
       className="relative w-full min-h-screen bg-[#9DC4FF] py-20 overflow-hidden"
     >
-      {/* Rotating vinyl disc */}
+      {/* Rotating vinyl disc - Hidden on small mobile */}
       {tourScheduleConfig.vinylImage && (
-        <div className="absolute top-20 right-20 w-64 h-64 md:w-80 md:h-80 z-10 opacity-80">
+        <div className="absolute top-20 right-20 w-64 h-64 md:w-80 md:h-80 z-10 opacity-80 hidden sm:block">
           <img
             src={tourScheduleConfig.vinylImage}
             alt="Vinyl Disc"
@@ -93,7 +93,7 @@ const TourSchedule = () => {
           <p className="font-mono-custom text-xs text-[#1F1F1F]/60 uppercase tracking-wider mb-2">
             {tourScheduleConfig.sectionLabel}
           </p>
-          <h2 className="font-display text-5xl md:text-7xl text-[#1F1F1F]">
+          <h2 className="font-display text-3xl md:text-7xl text-[#1F1F1F]">
             {tourScheduleConfig.sectionTitle}
           </h2>
         </div>
@@ -137,8 +137,8 @@ const TourSchedule = () => {
                 >
                   <div className="flex flex-col md:flex-row md:items-center gap-4">
                     {/* Date */}
-                    <div className="flex-shrink-0 w-28">
-                      <p className="font-mono-custom text-2xl font-bold text-[#1F1F1F]">
+                    <div className="flex-shrink-0 w-full md:w-28 mb-2 md:mb-0">
+                      <p className="font-mono-custom text-xl md:text-2xl font-bold text-[#1F1F1F]">
                         {tour.date.split('.').slice(1).join('.')}
                       </p>
                       <p className="font-mono-custom text-xs text-[#1F1F1F]/50">
@@ -165,26 +165,29 @@ const TourSchedule = () => {
                       <span className="font-mono-custom text-sm">{tour.time}</span>
                     </div>
 
-                    {/* Status badge */}
-                    <div className="flex-shrink-0">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${status.color}`}>
-                        {status.text}
-                      </span>
-                    </div>
-
-                    {/* Action button */}
-                    <div className="flex-shrink-0">
-                      {tour.status === 'on-sale' ? (
-                        <button className="flex items-center gap-2 px-4 py-2 bg-[#1F1F1F] text-white rounded-full text-sm font-medium hover:bg-[#1F1F1F]/80 transition-colors">
-                          <Ticket className="w-4 h-4" />
-                          <span>{tourScheduleConfig.buyButtonText}</span>
-                        </button>
-                      ) : (
-                        <button className="flex items-center gap-2 px-4 py-2 border border-[#1F1F1F]/20 text-[#1F1F1F]/60 rounded-full text-sm hover:border-[#1F1F1F]/40 transition-colors">
-                          <ExternalLink className="w-4 h-4" />
-                          <span>{tourScheduleConfig.detailsButtonText}</span>
-                        </button>
-                      )}
+                    {/* Status and Action */}
+                    <div className="flex items-center justify-between md:justify-end gap-4 w-full md:w-auto mt-4 md:mt-0">
+                      {/* Status badge */}
+                      <div className="flex-shrink-0">
+                        <span className={`px-3 py-1 rounded-full text-[10px] md:text-xs font-medium ${status.color}`}>
+                          {status.text}
+                        </span>
+                      </div>
+  
+                      {/* Action button */}
+                      <div className="flex-shrink-0">
+                        {tour.status === 'on-sale' ? (
+                          <button className="flex items-center gap-2 px-4 py-2 bg-[#1F1F1F] text-white rounded-full text-sm font-medium hover:bg-[#1F1F1F]/80 transition-colors">
+                            <Ticket className="w-4 h-4" />
+                            <span>{tourScheduleConfig.buyButtonText}</span>
+                          </button>
+                        ) : (
+                          <button className="flex items-center gap-2 px-4 py-2 border border-[#1F1F1F]/20 text-[#1F1F1F]/60 rounded-full text-sm hover:border-[#1F1F1F]/40 transition-colors">
+                            <ExternalLink className="w-4 h-4" />
+                            <span>{tourScheduleConfig.detailsButtonText}</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 

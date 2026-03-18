@@ -21,7 +21,7 @@ export const siteConfig: SiteConfig = {
 export interface HeroNavItem {
   label: string;
   sectionId: string;
-  icon: "disc" | "play" | "calendar" | "music";
+  icon: "collection" | "gallery" | "roadmap" | "community";
 }
 
 export interface HeroConfig {
@@ -52,10 +52,10 @@ export const heroConfig: HeroConfig = {
   cornerLabel: "NFT COLLECTION",
   cornerDetail: "Forgotten Realms",
   navItems: [
-    { label: "Collection", sectionId: "collection", icon: "disc" },
-    { label: "Gallery", sectionId: "gallery", icon: "play" },
-    { label: "Roadmap", sectionId: "roadmap", icon: "calendar" },
-    { label: "Community", sectionId: "community", icon: "music" },
+    { label: "Collection", sectionId: "collection", icon: "collection" },
+    { label: "Gallery", sectionId: "gallery", icon: "gallery" },
+    { label: "Roadmap", sectionId: "roadmap", icon: "roadmap" },
+    { label: "Community", sectionId: "community", icon: "community" },
   ],
 };
 

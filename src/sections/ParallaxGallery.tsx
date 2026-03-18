@@ -92,7 +92,7 @@ const ParallaxGallery = () => {
     <section
       id="gallery"
       ref={sectionRef}
-      className="relative w-full bg-void-black"
+      className="relative w-full bg-void-black overflow-hidden"
     >
       {/* Parallax Strips Section */}
       <div
