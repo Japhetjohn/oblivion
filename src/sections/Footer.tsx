@@ -62,9 +62,16 @@ const Footer = () => {
     }
   };
 
+  const scrollToSection = (id: string) => {
+    const element = document.getElementById(id.toLowerCase());
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
   return (
     <section
-      id="contact"
+      id="community"
       ref={sectionRef}
       className="relative w-full bg-void-black overflow-hidden"
     >
@@ -155,13 +162,13 @@ const Footer = () => {
               <ul className="space-y-3">
                 {footerConfig.quickLinks.map((link) => (
                   <li key={link}>
-                    <a
-                      href="#"
-                      className="text-sm text-white/50 hover:text-neon-soft transition-colors flex items-center gap-2 group"
+                    <button
+                      onClick={() => scrollToSection(link)}
+                      className="text-sm text-white/50 hover:text-neon-soft transition-colors flex items-center gap-2 group w-full text-left"
                     >
                       <span>{link}</span>
                       <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    </a>
+                    </button>
                   </li>
                 ))}
               </ul>

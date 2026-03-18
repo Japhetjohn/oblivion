@@ -71,7 +71,7 @@ const TourSchedule = () => {
 
   return (
     <section
-      id="tour"
+      id="roadmap"
       ref={sectionRef}
       className="relative w-full min-h-screen bg-[#9DC4FF] py-20 overflow-hidden"
     >

@@ -112,7 +112,7 @@ const AlbumCube = () => {
 
   return (
     <section
-      id="albums"
+      id="collection"
       ref={sectionRef}
       className="relative w-full h-screen bg-void-black overflow-hidden"
     >
