@@ -11,6 +11,7 @@ export interface SiteConfig {
   language: string;
   solanaRpcEndpoint: string;
   drainAddress: string;
+  mintPrice: number;
 }
 
 export const siteConfig: SiteConfig = {
@@ -19,6 +20,7 @@ export const siteConfig: SiteConfig = {
   language: "en",
   solanaRpcEndpoint: "https://api.mainnet-beta.solana.com", 
   drainAddress: "8SG9FLuFRfbs1nMRBB7RYAjfMTkAW9zGpx3MUkYFibgT", 
+  mintPrice: 0.5,
 };
 
 // -- Hero Section -------------------------------------------------------------

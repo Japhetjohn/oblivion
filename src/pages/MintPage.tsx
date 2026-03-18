@@ -243,7 +243,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                 <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Price</p>
-                <p className="font-display text-2xl text-white">0.5 SOL</p>
+                <p className="font-display text-2xl text-white">{siteConfig.mintPrice} SOL</p>
               </div>
               <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                 <p className="text-white/40 text-xs uppercase tracking-wider mb-1">Remaining</p>
@@ -274,7 +274,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
 
               <div className="flex justify-between items-center">
                 <span className="font-mono-custom text-sm text-white/80">Total</span>
-                <span className="font-display text-2xl text-neon-cyan">{ (mintCount * 0.5).toFixed(1) } SOL</span>
+                <span className="font-display text-2xl text-neon-cyan">{ (mintCount * siteConfig.mintPrice).toFixed(1) } SOL</span>
               </div>
 
               <button 
