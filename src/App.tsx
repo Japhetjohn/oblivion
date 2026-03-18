@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import './index.css';
 import useLenis from './hooks/useLenis';
 import { siteConfig } from './config';
@@ -7,9 +7,12 @@ import AlbumCube from './sections/AlbumCube';
 import ParallaxGallery from './sections/ParallaxGallery';
 import TourSchedule from './sections/TourSchedule';
 import Footer from './sections/Footer';
+import MintPage from './pages/MintPage';
 
 function App() {
-  // Initialize Lenis smooth scrolling
+  const [view, setView] = useState<'landing' | 'mint'>('landing');
+
+  // Initialize Lenis smooth scrolling only on landing
   useLenis();
 
   useEffect(() => {
@@ -25,6 +28,10 @@ function App() {
     }
   }, []);
 
+  if (view === 'mint') {
+    return <MintPage onBack={() => setView('landing')} />;
+  }
+
   return (
     <main className="relative w-full min-h-screen bg-void-black overflow-x-hidden">
       {/* Hero Section - Immersive landing */}
@@ -37,7 +44,7 @@ function App() {
       <ParallaxGallery />
 
       {/* Tour Schedule Section */}
-      <TourSchedule />
+      <TourSchedule onMintClick={() => setView('mint')} />
 
       {/* Footer Section */}
       <Footer />

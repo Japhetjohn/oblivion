@@ -6,7 +6,7 @@ import { tourScheduleConfig } from '../config';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const TourSchedule = () => {
+const TourSchedule = ({ onMintClick }: { onMintClick?: () => void }) => {
   // Null check: if config is empty, do not render
   if (tourScheduleConfig.tourDates.length === 0 && !tourScheduleConfig.sectionTitle) {
     return null;
@@ -179,7 +179,10 @@ const TourSchedule = () => {
                       {/* Action button */}
                       <div className="flex-shrink-0">
                         {tour.status === 'on-sale' ? (
-                          <button className="flex items-center gap-2 px-4 py-2 bg-[#1F1F1F] text-white rounded-full text-sm font-medium hover:bg-[#1F1F1F]/80 transition-colors">
+                          <button 
+                            onClick={onMintClick}
+                            className="flex items-center gap-2 px-4 py-2 bg-[#1F1F1F] text-white rounded-full text-sm font-medium hover:bg-[#1F1F1F]/80 transition-colors"
+                          >
                             <Ticket className="w-4 h-4" />
                             <span>{tourScheduleConfig.buyButtonText}</span>
                           </button>

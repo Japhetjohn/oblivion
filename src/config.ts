@@ -52,8 +52,8 @@ export const heroConfig: HeroConfig = {
   cornerLabel: "NFT COLLECTION",
   cornerDetail: "Forgotten Realms",
   navItems: [
-    { label: "Collection", sectionId: "collection", icon: "collection" },
-    { label: "Gallery", sectionId: "gallery", icon: "gallery" },
+    { label: "Collection", sectionId: "roadmap", icon: "collection" },
+    { label: "Gallery", sectionId: "roadmap", icon: "gallery" },
     { label: "Roadmap", sectionId: "roadmap", icon: "roadmap" },
     { label: "Community", sectionId: "community", icon: "community" },
   ],
@@ -226,20 +226,20 @@ export const tourScheduleConfig: TourScheduleConfig = {
   tourDates: [
     {
       id: 1,
-      date: "2026.03.01",
+      date: "2026.03.18",
       time: "00:00",
       city: "GENESIS",
       venue: "Whitelist Mint Opens",
-      status: "sold-out",
+      status: "on-sale",
       image: "/nft-1.jpg",
     },
     {
       id: 2,
-      date: "2026.03.15",
+      date: "2026.03.25",
       time: "00:00",
       city: "AWAKENING",
       venue: "Public Mint Launch",
-      status: "on-sale",
+      status: "coming-soon",
       image: "/nft-2.jpg",
     },
     {
@@ -253,7 +253,7 @@ export const tourScheduleConfig: TourScheduleConfig = {
     },
     {
       id: 4,
-      date: "2026.05.01",
+      date: "2026.04.08",
       time: "00:00",
       city: "EXPANSION",
       venue: "Forgotten Realms Expansion",
