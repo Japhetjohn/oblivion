@@ -226,7 +226,7 @@ export const tourScheduleConfig: TourScheduleConfig = {
   tourDates: [
     {
       id: 1,
-      date: "2025.03.01",
+      date: "2026.03.01",
       time: "00:00",
       city: "GENESIS",
       venue: "Whitelist Mint Opens",
@@ -235,7 +235,7 @@ export const tourScheduleConfig: TourScheduleConfig = {
     },
     {
       id: 2,
-      date: "2025.03.15",
+      date: "2026.03.15",
       time: "00:00",
       city: "AWAKENING",
       venue: "Public Mint Launch",
@@ -244,7 +244,7 @@ export const tourScheduleConfig: TourScheduleConfig = {
     },
     {
       id: 3,
-      date: "2025.04.01",
+      date: "2026.04.01",
       time: "00:00",
       city: "REVELATION",
       venue: "Holder Benefits Reveal",
@@ -253,7 +253,7 @@ export const tourScheduleConfig: TourScheduleConfig = {
     },
     {
       id: 4,
-      date: "2025.05.01",
+      date: "2026.05.01",
       time: "00:00",
       city: "EXPANSION",
       venue: "Forgotten Realms Expansion",
@@ -270,7 +270,7 @@ export interface FooterImage {
 }
 
 export interface SocialLink {
-  icon: "instagram" | "twitter" | "youtube" | "music";
+  icon: "instagram" | "twitter" | "youtube" | "discord";
   label: string;
   href: string;
 }
@@ -327,11 +327,11 @@ export const footerConfig: FooterConfig = {
   newsletterDescription: "Subscribe to receive updates on new drops, exclusive benefits, and community events.",
   newsletterButtonText: "SUBSCRIBE",
   subscribeAlertMessage: "Welcome to the Forgotten Realms! Check your email for confirmation.",
-  copyrightText: "© 2025 Oblivion NFT. All rights reserved.",
+  copyrightText: "© 2026 Oblivion NFT. All rights reserved.",
   bottomLinks: ["Terms of Service", "Privacy Policy", "Smart Contract"],
   socialLinks: [
     { icon: "twitter", label: "Twitter", href: "https://x.com/echooblivion" },
-    { icon: "music", label: "Discord", href: "https://discord.gg/E6ub9EcFb" },
+    { icon: "discord", label: "Discord", href: "https://discord.gg/E6ub9EcFb" },
     { icon: "youtube", label: "YouTube", href: "#" },
     { icon: "instagram", label: "Instagram", href: "#" },
   ],

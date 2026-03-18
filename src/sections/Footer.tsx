@@ -1,7 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { Instagram, Twitter, Youtube, Music2, Mail, Phone, MapPin, ExternalLink } from 'lucide-react';
+import { Instagram, Twitter, Youtube, MessageSquare, Mail, Phone, MapPin, ExternalLink } from 'lucide-react';
 import { footerConfig } from '../config';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -10,7 +10,7 @@ const SOCIAL_ICON_MAP = {
   instagram: Instagram,
   twitter: Twitter,
   youtube: Youtube,
-  music: Music2,
+  discord: MessageSquare,
 };
 
 const Footer = () => {
