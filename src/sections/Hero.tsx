@@ -92,6 +92,8 @@ const Hero = () => {
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url(${heroConfig.backgroundImage})` }}
+          // @ts-ignore
+          fetchpriority="high"
         />
         {/* Dark overlay */}
         <div className="absolute inset-0 video-overlay" />
@@ -127,7 +129,7 @@ const Hero = () => {
         <div className="absolute top-6 left-6 md:top-8 md:left-8">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 md:w-8 md:h-8 rounded-full overflow-hidden flex items-center justify-center border border-neon-cyan/30">
-              <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover" />
+              <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover" loading="lazy" />
             </div>
             <span className="font-display text-base md:text-lg text-white">{heroConfig.brandName}</span>
           </div>

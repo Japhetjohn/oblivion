@@ -85,6 +85,7 @@ const TourSchedule = () => {
               src={tourScheduleConfig.vinylImage}
               alt="Vinyl Disc"
               className="w-full h-full object-cover animate-spin-slow"
+              loading="lazy"
             />
             {/* Vinyl hole */}
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 bg-[#9DC4FF] rounded-full border border-[#1F1F1F]/20" />
@@ -114,6 +115,7 @@ const TourSchedule = () => {
                     src={TOUR_DATES[activeVenue]?.image}
                     alt={TOUR_DATES[activeVenue]?.venue}
                     className="w-full h-full object-cover transition-transform duration-700 hover:scale-105"
+                    loading="lazy"
                   />
 
                 {/* Venue info overlay */}

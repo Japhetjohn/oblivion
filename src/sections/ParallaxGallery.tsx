@@ -82,7 +82,7 @@ const ParallaxGallery = () => {
   }, []);
 
   const scrollToTour = () => {
-    const tourSection = document.getElementById('tour');
+    const tourSection = document.getElementById('roadmap');
     if (tourSection) {
       tourSection.scrollIntoView({ behavior: 'smooth' });
     }
@@ -200,6 +200,7 @@ const ParallaxGallery = () => {
                   src={image.src}
                   alt={image.title}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  loading="lazy"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-void-black/80 via-transparent to-transparent" />
 

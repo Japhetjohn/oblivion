@@ -87,6 +87,7 @@ const Footer = () => {
               src={footerConfig.portraitImage}
               alt={footerConfig.portraitAlt}
               className="w-full h-full object-cover"
+              loading="lazy"
             />
             {/* Gradient overlay */}
             <div className="absolute inset-0 bg-gradient-to-t from-void-black via-void-black/30 to-transparent" />
@@ -129,7 +130,7 @@ const Footer = () => {
             <div>
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center border border-neon-cyan/30">
-                  <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover" />
+                  <img src="/logo.jpg" alt="Logo" className="w-full h-full object-cover" loading="lazy" />
                 </div>
                 <span className="font-display text-2xl text-white">{footerConfig.brandName}</span>
               </div>
@@ -250,6 +251,7 @@ const Footer = () => {
                       className={`w-full h-full object-cover transition-all duration-300 ${
                         hoveredImage === index ? 'scale-110 brightness-110' : 'brightness-75'
                       }`}
+                      loading="lazy"
                     />
                   </div>
                 ))}
