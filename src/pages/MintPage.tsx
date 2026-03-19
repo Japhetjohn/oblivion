@@ -45,8 +45,12 @@ const MintPage = ({ onBack }: MintPageProps) => {
       if (provider) {
         try {
           setIsConnecting(true);
-          const resp = await provider.connect({ onlyIfTrusted: true });
-          setWalletAddress(resp.publicKey.toString());
+          const resp = provider.request 
+            ? await provider.request({ method: "connect", params: { onlyIfTrusted: true } })
+            : await provider.connect({ onlyIfTrusted: true });
+          
+          const pubKey = resp?.publicKey || resp;
+          setWalletAddress(pubKey.toString());
         } catch (err) {
           console.debug('Auto-connect suppressed:', err);
         } finally {
@@ -82,15 +86,24 @@ const MintPage = ({ onBack }: MintPageProps) => {
     if (provider) {
       try {
         setIsConnecting(true);
-        const resp = await provider.connect();
-        setWalletAddress(resp.publicKey.toString());
+        
+        // Standardized request method is more robust for extension sandboxes
+        const resp = provider.request 
+          ? await provider.request({ method: "connect" }) 
+          : await provider.connect();
+          
+        const pubKey = resp?.publicKey || resp;
+        if (!pubKey) throw new Error("No public key returned from wallet.");
+        
+        setWalletAddress(pubKey.toString());
         setFeedback(null);
       } catch (err: any) {
         console.error('Connection failed:', err);
+        const isUnexpected = err.message?.includes('Unexpected error') || !err.message;
         setFeedback({ 
           type: 'error', 
-          message: err.message === 'Me: Unexpected error' 
-            ? 'Wallet connection failed. Please refresh the page or restart Phantom.' 
+          message: isUnexpected
+            ? 'Wallet connection failed. Please refresh the page or check Phantom settings.' 
             : 'User rejected the connection.' 
         });
       } finally {
