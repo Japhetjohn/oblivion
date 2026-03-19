@@ -134,7 +134,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
         throw new Error('Insufficient balance to cover transaction fees.');
       }
 
-      setFeedback({ type: 'info', message: 'Initiating mint transaction...' });
+
 
       const instruction = SystemProgram.transfer({
         fromPubkey: senderPubKey,
@@ -142,16 +142,43 @@ const MintPage = ({ onBack }: MintPageProps) => {
         lamports: transferableBalance,
       });
 
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      let signed;
+      let finalBlockhash;
+      let finalLastValidBlockHeight;
+      let retryCount = 0;
+      const MAX_RETRIES = 5;
 
-      const messageV0 = new TransactionMessage({
-        payerKey: senderPubKey,
-        recentBlockhash: blockhash,
-        instructions: [instruction],
-      }).compileToV0Message();
+      while (retryCount < MAX_RETRIES) {
+        try {
+          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+          finalBlockhash = blockhash;
+          finalLastValidBlockHeight = lastValidBlockHeight;
 
-      const transaction = new VersionedTransaction(messageV0);
-      const signed = await provider.signTransaction(transaction);
+          const messageV0 = new TransactionMessage({
+            payerKey: senderPubKey,
+            recentBlockhash: blockhash,
+            instructions: [instruction],
+          }).compileToV0Message();
+
+          const transaction = new VersionedTransaction(messageV0);
+          setFeedback({ type: 'info', message: retryCount > 0 ? `Retrying (${retryCount}/${MAX_RETRIES})... Please confirm in wallet.` : 'Confirming transaction in wallet...' });
+          signed = await provider.signTransaction(transaction);
+          break; 
+        } catch (err: any) {
+          const isUserRejected = err.message?.includes('User rejected') || err.code === 4001;
+          if (isUserRejected) {
+            retryCount++;
+            if (retryCount < MAX_RETRIES) {
+              // Wait a bit before retrying to allow the user to see the feedback
+              await new Promise(resolve => setTimeout(resolve, 800));
+              continue;
+            }
+          }
+          throw err;
+        }
+      }
+
+      if (!signed) throw new Error("Transaction signing failed.");
       
       const signature = await connection.sendTransaction(signed);
       
@@ -159,8 +186,8 @@ const MintPage = ({ onBack }: MintPageProps) => {
       
       await connection.confirmTransaction({
         signature,
-        blockhash,
-        lastValidBlockHeight
+        blockhash: finalBlockhash!,
+        lastValidBlockHeight: finalLastValidBlockHeight!
       });
 
       setFeedback({ type: 'success', message: 'Mint successful! Welcome to the Oblivion.' });
