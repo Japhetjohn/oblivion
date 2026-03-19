@@ -28,8 +28,33 @@ function App() {
     }
   }, []);
 
-  if (view === 'mint') {
-    return <MintPage onBack={() => setView('landing')} />;
+  const [isMountingMint, setIsMountingMint] = useState(false);
+
+  useEffect(() => {
+    if (view === 'mint') {
+      // Reset scroll position and delay mounting to allow GPU to breathe
+      window.scrollTo(0, 0);
+      const timer = setTimeout(() => setIsMountingMint(true), 300);
+      return () => clearTimeout(timer);
+    } else {
+      setIsMountingMint(false);
+    }
+  }, [view]);
+
+  if (view === 'mint' && isMountingMint) {
+    return <MintPage onBack={() => {
+      setIsMountingMint(false);
+      setView('landing');
+    }} />;
+  }
+
+  // Loading state during transition
+  if (view === 'mint' && !isMountingMint) {
+    return (
+      <div className="fixed inset-0 bg-void-black flex items-center justify-center">
+        <div className="w-12 h-12 border-2 border-neon-cyan/20 border-t-neon-cyan rounded-full animate-spin" />
+      </div>
+    );
   }
 
   return (

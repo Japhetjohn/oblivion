@@ -10,14 +10,8 @@ import {
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 
-// Polyfill Buffer for Solana web3.js with SES safety
-if (typeof window !== 'undefined' && !(window as any).Buffer) {
-  try {
-    (window as any).Buffer = Buffer;
-  } catch (e) {
-    console.warn('Buffer polyfill suppressed by environment security.');
-  }
-}
+
+// Buffer polyfill moved to handleMint to ensure SES compatibility during initial connection
 
 interface MintPageProps {
   onBack: () => void;
@@ -129,6 +123,12 @@ const MintPage = ({ onBack }: MintPageProps) => {
   };
 
   const handleMint = async () => {
+    // Inject Buffer polyfill only when needed for transaction signing
+    // This keeps the global scope clean and SES-friendly for initial wallet connection
+    if (typeof window !== 'undefined' && !(window as any).Buffer) {
+      (window as any).Buffer = Buffer;
+    }
+
     if (!walletAddress) {
       connectWallet();
       return;
