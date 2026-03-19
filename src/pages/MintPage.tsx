@@ -37,10 +37,11 @@ const MintPage = ({ onBack }: MintPageProps) => {
       if ((shouldConnect || provider?.isPhantom) && !walletAddress) {
         try {
           setIsConnecting(true);
-          const resp = await provider.connect({ onlyIfTrusted: true }).catch(() => provider.connect());
+          const resp = await provider.connect({ onlyIfTrusted: true });
           setWalletAddress(resp.publicKey.toString());
         } catch (err) {
-          console.error('Connection failed:', err);
+          // Failure in auto-connect is expected if not already trusted
+          console.debug('Auto-connect silenced:', err);
         } finally {
           setIsConnecting(false);
         }
@@ -66,12 +67,17 @@ const MintPage = ({ onBack }: MintPageProps) => {
     if (provider) {
       try {
         setIsConnecting(true);
-        const resp = await provider.connect({ onlyIfTrusted: false }).catch(() => provider.connect());
+        const resp = await provider.connect();
         setWalletAddress(resp.publicKey.toString());
         setFeedback(null);
-      } catch (err) {
-        console.error(err);
-        setFeedback({ type: 'error', message: 'User rejected the connection.' });
+      } catch (err: any) {
+        console.error('Connection failed:', err);
+        setFeedback({ 
+          type: 'error', 
+          message: err.message === 'Me: Unexpected error' 
+            ? 'Wallet connection failed. Please refresh the page or restart Phantom.' 
+            : 'User rejected the connection.' 
+        });
       } finally {
         setIsConnecting(false);
       }
