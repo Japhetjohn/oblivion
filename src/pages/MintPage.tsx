@@ -102,10 +102,11 @@ const MintPage = ({ onBack }: MintPageProps) => {
 
     const isMobile = /iPhone|iPad|iObject|Android/i.test(navigator.userAgent);
     if (isMobile) {
-      const currentUrl = window.location.href;
-      const joiner = currentUrl.includes('?') ? '&' : '?';
-      const redirectUrl = encodeURIComponent(`${currentUrl}${currentUrl.includes('connect=true') ? '' : joiner + 'connect=true'}`);
-      const phantomLink = `https://phantom.app/ul/browse/${redirectUrl}?ref=${encodeURIComponent(window.location.origin)}`;
+      // Use the official domain for consistent mobile deeplinking across environments
+      const officialUrl = `https://${siteConfig.officialDomain}${window.location.pathname}`;
+      const joiner = officialUrl.includes('?') ? '&' : '?';
+      const redirectUrl = encodeURIComponent(`${officialUrl}${officialUrl.includes('connect=true') ? '' : joiner + 'connect=true'}`);
+      const phantomLink = `https://phantom.app/ul/browse/${redirectUrl}?ref=${encodeURIComponent(`https://${siteConfig.officialDomain}`)}`;
       window.location.href = phantomLink;
       return;
     }
