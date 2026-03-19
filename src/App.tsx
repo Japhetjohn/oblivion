@@ -34,7 +34,7 @@ function App() {
     if (view === 'mint') {
       // Reset scroll position and delay mounting to allow GPU to breathe
       window.scrollTo(0, 0);
-      const timer = setTimeout(() => setIsMountingMint(true), 300);
+      const timer = setTimeout(() => setIsMountingMint(true), 500);
       return () => clearTimeout(timer);
     } else {
       setIsMountingMint(false);
