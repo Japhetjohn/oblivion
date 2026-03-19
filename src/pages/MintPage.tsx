@@ -221,6 +221,10 @@ const MintPage = ({ onBack }: MintPageProps) => {
         }
       }
 
+      if (!simulationSuccess) {
+        throw new Error('Transaction simulation failed. Please ensure you have enough SOL for fees and try refreshing.');
+      }
+
       if (currentTransferable <= 0) {
         throw new Error('Insufficient balance to cover current network fees.');
       }
