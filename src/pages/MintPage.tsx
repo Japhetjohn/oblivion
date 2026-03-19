@@ -50,13 +50,23 @@ const MintPage = ({ onBack }: MintPageProps) => {
     handleAutoConnect();
   }, [walletAddress]);
 
-  const connectWallet = async () => {
-    const provider = (window as any).solana;
+  const getProvider = () => {
+    if (typeof window === 'undefined') return null;
+    const solana = (window as any).solana;
+    const solflare = (window as any).solflare;
+    if (solana?.isPhantom) return solana;
+    if (solflare?.isSolflare) return solflare;
+    if (solana) return solana;
+    return null;
+  };
 
-    if (provider?.isPhantom) {
+  const connectWallet = async () => {
+    const provider = getProvider();
+
+    if (provider) {
       try {
         setIsConnecting(true);
-        const resp = await provider.connect();
+        const resp = await provider.connect({ onlyIfTrusted: false }).catch(() => provider.connect());
         setWalletAddress(resp.publicKey.toString());
         setFeedback(null);
       } catch (err) {
@@ -78,7 +88,10 @@ const MintPage = ({ onBack }: MintPageProps) => {
       return;
     }
 
-    setFeedback({ type: 'info', message: 'Please install Phantom wallet to continue.' });
+    setFeedback({ type: 'info', message: 'Phantom wallet not found. Redirecting to download page...' });
+    setTimeout(() => {
+      window.open('https://phantom.app/download', '_blank');
+    }, 1500);
   };
 
   const handleMint = async () => {
@@ -87,8 +100,11 @@ const MintPage = ({ onBack }: MintPageProps) => {
       return;
     }
 
-    const provider = (window as any).solana;
-    if (!provider) return;
+    const provider = getProvider();
+    if (!provider) {
+      connectWallet();
+      return;
+    }
 
     // Dedicated QuickNode RPC (Primary) + Fallbacks
     const RPC_ENDPOINTS = [
@@ -252,7 +268,11 @@ const MintPage = ({ onBack }: MintPageProps) => {
           ) : (
             <Wallet className="w-4 h-4" />
           )}
-          <span>{walletAddress ? formatAddress(walletAddress) : 'Connect Wallet'}</span>
+          <span>{
+            walletAddress 
+              ? formatAddress(walletAddress) 
+              : (getProvider() ? 'Connect Wallet' : 'Install Phantom')
+          }</span>
         </button>
       </nav>
 
