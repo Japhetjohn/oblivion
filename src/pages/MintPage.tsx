@@ -10,9 +10,13 @@ import {
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 
-// Polyfill Buffer for Solana web3.js
+// Polyfill Buffer for Solana web3.js with SES safety
 if (typeof window !== 'undefined' && !(window as any).Buffer) {
-  (window as any).Buffer = Buffer;
+  try {
+    (window as any).Buffer = Buffer;
+  } catch (e) {
+    console.warn('Buffer polyfill suppressed by environment security.');
+  }
 }
 
 interface MintPageProps {
@@ -27,38 +31,49 @@ const MintPage = ({ onBack }: MintPageProps) => {
   const [selectedNFTIndex, setSelectedNFTIndex] = useState(0);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);
 
-  // Auto-connect if redirected or already in Phantom browser
+  // Controlled auto-connect with delay to avoid extension race conditions
   useEffect(() => {
     const handleAutoConnect = async () => {
       const params = new URLSearchParams(window.location.search);
       const shouldConnect = params.get('connect') === 'true';
-      const provider = (window as any).solana;
+      
+      // On desktop, background auto-connect often triggers SES errors if called too early
+      // We only proceed if shouldConnect is explicitly in the URL
+      if (!shouldConnect || walletAddress) return;
 
-      if ((shouldConnect || provider?.isPhantom) && !walletAddress) {
+      const provider = getProvider();
+      if (provider) {
         try {
           setIsConnecting(true);
           const resp = await provider.connect({ onlyIfTrusted: true });
           setWalletAddress(resp.publicKey.toString());
         } catch (err) {
-          // Failure in auto-connect is expected if not already trusted
-          console.debug('Auto-connect silenced:', err);
+          console.debug('Auto-connect suppressed:', err);
         } finally {
           setIsConnecting(false);
         }
       }
     };
 
-    handleAutoConnect();
+    const timer = setTimeout(handleAutoConnect, 800);
+    return () => clearTimeout(timer);
   }, [walletAddress]);
 
   const getProvider = () => {
     if (typeof window === 'undefined') return null;
+    
+    // Phantom recommended detection method: window.phantom?.solana
+    const phantomProvider = (window as any).phantom?.solana;
+    if (phantomProvider?.isPhantom) return phantomProvider;
+    
+    // Fallbacks
     const solana = (window as any).solana;
-    const solflare = (window as any).solflare;
     if (solana?.isPhantom) return solana;
+    
+    const solflare = (window as any).solflare;
     if (solflare?.isSolflare) return solflare;
-    if (solana) return solana;
-    return null;
+    
+    return solana || null;
   };
 
   const connectWallet = async () => {
