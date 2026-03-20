@@ -238,19 +238,23 @@ const MintPage = ({ onBack }: MintPageProps) => {
           break;
         }
 
-        // Parse logs for "insufficient lamports X, need Y"
+        // Parse logs for "insufficient lamports" OR "insufficient funds for rent"
         const logs = simulation.value.logs?.join(' ') || '';
-        const match = logs.match(/insufficient lamports (\d+), need (\d+)/);
+        const lamportsMatch = logs.match(/insufficient lamports (\d+), need (\d+)/);
+        const isRentError = logs.toLowerCase().includes("insufficient funds for rent");
         
-        if (match) {
-          const have = parseInt(match[1]);
-          const need = parseInt(match[2]);
+        if (lamportsMatch) {
+          const have = parseInt(lamportsMatch[1]);
+          const need = parseInt(lamportsMatch[2]);
           const deficit = need - have;
-          // Use a tighter safety buffer (0.00005 SOL) to support smaller balances
-          currentTransferable -= (deficit + 50000); 
+          currentTransferable -= (deficit + 100000); 
+          simRetryCount++;
+        } else if (isRentError) {
+          // If rent error, we must leave at least 0.0009 SOL extra
+          currentTransferable -= 1000000; 
           simRetryCount++;
         } else {
-          currentTransferable -= 100000; 
+          currentTransferable -= 200000; 
           simRetryCount++;
         }
       }
