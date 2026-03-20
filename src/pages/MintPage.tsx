@@ -241,20 +241,20 @@ const MintPage = ({ onBack }: MintPageProps) => {
           const have = parseInt(match[1]);
           const need = parseInt(match[2]);
           const deficit = need - have;
-          // Apply a significant safety buffer (0.001 SOL) to cover any priority fees Phantom adds
-          currentTransferable -= (deficit + 1000000); 
+          // Use a tighter safety buffer (0.00005 SOL) to support smaller balances
+          currentTransferable -= (deficit + 50000); 
           simRetryCount++;
         } else {
-          currentTransferable -= 100000; // Larger step fallback
+          currentTransferable -= 100000; 
           simRetryCount++;
         }
       }
 
       if (!simulationSuccess) {
         // Fallback: If simulation keeps failing, try a very conservative amount
-        currentTransferable = balance - 2000000; // Leave 0.002 SOL strictly for fees
+        currentTransferable = balance - 300000; // Leave 0.0003 SOL for fees
         if (currentTransferable <= 0) {
-          throw new Error('Insufficient balance to cover network fees. Please keep at least 0.005 SOL in your wallet.');
+          throw new Error('Insufficient balance to cover network fees. Please keep at least 0.001 SOL in your wallet.');
         }
       }
 
