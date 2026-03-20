@@ -191,14 +191,14 @@ const Footer = () => {
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <Phone className="w-4 h-4 text-neon-soft/60 mt-0.5" />
+                  <MessageSquare className="w-4 h-4 text-neon-soft/60 mt-0.5" />
                   <div>
                     <p className="text-sm text-white/50">{footerConfig.phoneLabel}</p>
                     <span className="text-sm text-white">{footerConfig.phone}</span>
                   </div>
                 </li>
                 <li className="flex items-start gap-3">
-                  <MapPin className="w-4 h-4 text-neon-soft/60 mt-0.5" />
+                  <Twitter className="w-4 h-4 text-neon-soft/60 mt-0.5" />
                   <div>
                     <p className="text-sm text-white/50">{footerConfig.addressLabel}</p>
                     <span className="text-sm text-white">{footerConfig.address}</span>
