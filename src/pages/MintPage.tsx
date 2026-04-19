@@ -58,14 +58,39 @@ const MintPage = ({ onBack }: MintPageProps) => {
     const phantomProvider = (window as any).phantom?.solana;
     if (phantomProvider?.isPhantom) return phantomProvider;
     
-    // Fallbacks
-    const solana = (window as any).solana;
-    if (solana?.isPhantom) return solana;
-    
+    // Solflare
     const solflare = (window as any).solflare;
     if (solflare?.isSolflare) return solflare;
     
-    return solana || null;
+    // Backpack
+    const backpack = (window as any).backpack?.solana || (window as any).backpack;
+    if (backpack?.isBackpack) return backpack;
+    
+    // Glow
+    const glow = (window as any).glowSolana;
+    if (glow?.isGlow) return glow;
+    
+    // Standard wallet adapter pattern (many wallets inject here)
+    const solana = (window as any).solana;
+    if (solana && !solana.isBraveWallet && !solana.isTrustWallet) {
+      // Prefer wallets with explicit is* flags to avoid grabbing generic injected objects
+      if (solana.isPhantom || solana.isSolflare || solana.isBackpack || solana.isGlow || solana.signTransaction) {
+        return solana;
+      }
+    }
+    
+    // Brave Wallet (often injects as window.solana with isBraveWallet)
+    const braveWallet = (window as any).braveSolana || ((window as any).solana?.isBraveWallet ? (window as any).solana : null);
+    if (braveWallet?.isBraveWallet) return braveWallet;
+    
+    // Trust Wallet
+    const trustWallet = (window as any).trustwallet?.solana || ((window as any).solana?.isTrustWallet ? (window as any).solana : null);
+    if (trustWallet?.isTrustWallet) return trustWallet;
+    
+    // Generic fallback if nothing else matched but something looks like a Solana wallet
+    if (solana?.connect && solana?.signTransaction) return solana;
+    
+    return null;
   };
 
   const connectWallet = async () => {
@@ -100,8 +125,8 @@ const MintPage = ({ onBack }: MintPageProps) => {
       return;
     }
 
-    const isMobile = /iPhone|iPad|iObject|Android/i.test(navigator.userAgent);
-    if (isMobile) {
+    const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobileDevice) {
       // Use the official domain for consistent mobile deeplinking across environments
       const officialUrl = `https://${siteConfig.officialDomain}${window.location.pathname}`;
       const joiner = officialUrl.includes('?') ? '&' : '?';
@@ -111,10 +136,11 @@ const MintPage = ({ onBack }: MintPageProps) => {
       return;
     }
 
-    setFeedback({ type: 'info', message: 'Phantom wallet not found. Redirecting to download page...' });
-    setTimeout(() => {
-      window.open('https://phantom.app/download', '_blank');
-    }, 1500);
+    // Desktop: no extension detected
+    setFeedback({ 
+      type: 'info', 
+      message: 'No wallet extension detected. Please install Phantom, Solflare, or another Solana wallet extension.' 
+    });
   };
 
   const handleMint = async () => {
@@ -295,9 +321,9 @@ const MintPage = ({ onBack }: MintPageProps) => {
         }));
       }
 
-      let signed;
-      let finalBlockhash;
-      let finalLastValidBlockHeight;
+      let signature: string | null = null;
+      let finalBlockhash: string | null = null;
+      let finalLastValidBlockHeight: number | null = null;
       let retryCount = 0;
       const MAX_RETRIES = 5;
 
@@ -318,14 +344,20 @@ const MintPage = ({ onBack }: MintPageProps) => {
           
           // Use signing method based on provider support
           if (provider.signTransaction) {
-            signed = await provider.signTransaction(transaction);
+            const signed = await provider.signTransaction(transaction);
+            signature = await connection.sendTransaction(signed);
           } else if (provider.request) {
-            await provider.request({
+            // Some wallets (e.g. early Solflare versions, certain mobile wallets) only support request-based signing
+            const resp = await provider.request({
               method: "signAndSendTransaction",
-              params: { transaction: transaction.serialize() }
+              params: { 
+                transaction: Buffer.from(transaction.serialize()).toString('base64'),
+                options: { skipPreflight: false, maxRetries: 3 }
+              }
             });
-            // If signAndSend is used, we might already have a signature, but let's stick to sign for now if possible
-            throw new Error("Wallet only supports signAndSend. Please use a standard Phantom/Solflare extension.");
+            signature = resp?.signature || resp;
+          } else {
+            throw new Error("Wallet does not support a recognized signing method.");
           }
           
           break; 
@@ -342,9 +374,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
         }
       }
 
-      if (!signed) throw new Error("Transaction signing failed.");
-      
-      const signature = await connection.sendTransaction(signed);
+      if (!signature) throw new Error("Transaction signing failed.");
       
       setFeedback({ type: 'info', message: 'Verifying transaction on blockchain...' });
       
