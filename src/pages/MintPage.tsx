@@ -173,9 +173,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
 
     // Dedicated QuickNode RPC (Primary) + Fallbacks
     const RPC_ENDPOINTS = [
-      siteConfig.solanaRpcEndpoint,
-      "https://rpc.ankr.com/solana",
-      "https://api.mainnet-beta.solana.com"
+      siteConfig.solanaRpcEndpoint
     ];
 
     try {
