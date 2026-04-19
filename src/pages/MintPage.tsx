@@ -180,10 +180,6 @@ const MintPage = ({ onBack }: MintPageProps) => {
     } = await import('@solana/web3.js');
     const { Buffer } = await import('buffer');
 
-    if (typeof window !== 'undefined' && !(window as any).Buffer) {
-      (window as any).Buffer = Buffer;
-    }
-
     if (!walletAddress) {
       console.log('[Mint] No wallet connected, triggering connect...');
       connectWallet();
@@ -219,131 +215,126 @@ const MintPage = ({ onBack }: MintPageProps) => {
         throw new Error('Wallet has zero balance.');
       }
 
-      console.log('[Mint] Getting latest blockhash...');
-      const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-      console.log('[Mint] Blockhash:', blockhash);
-      console.log('[Mint] Last valid block height:', lastValidBlockHeight);
+      // Strategy: sign first (wallet may inject priority fees), then simulate the SIGNED tx.
+      // If simulation fails due to insufficient lamports, parse the exact deficit and retry.
+      let transferAmount = balance;
+      let attempts = 0;
+      const MAX_ATTEMPTS = 3;
+      let signature: string | null = null;
+      let lastBlockhash = '';
+      let lastValidBlockHeight = 0;
 
-      // Step 1: Build a test message with FULL balance to calculate exact network fee
-      console.log('[Mint] Building test message with full balance to get exact fee...');
-      const testTransfer = SystemProgram.transfer({
-        fromPubkey: senderPubKey,
-        toPubkey: recipientPubKey,
-        lamports: balance,
-      });
+      while (attempts < MAX_ATTEMPTS) {
+        attempts++;
+        console.log(`[Mint] --- Attempt ${attempts}/${MAX_ATTEMPTS} ---`);
+        console.log('[Mint] Current transferAmount (lamports):', transferAmount);
+        console.log('[Mint] Current transferAmount (SOL):', transferAmount / 1e9);
 
-      const testMessage = new TransactionMessage({
-        payerKey: senderPubKey,
-        recentBlockhash: blockhash,
-        instructions: [testTransfer],
-      }).compileToV0Message();
-
-      console.log('[Mint] Calling getFeeForMessage...');
-      const feeResponse = await connection.getFeeForMessage(testMessage);
-      console.log('[Mint] Fee response:', feeResponse);
-      
-      const fee = feeResponse.value;
-      if (fee === null) {
-        console.log('[Mint] RPC returned null fee, falling back to simulation');
-      }
-      console.log('[Mint] Network fee (lamports):', fee);
-      console.log('[Mint] Network fee (SOL):', fee ? fee / 1e9 : 'unknown');
-
-      // Step 2: Calculate transfer amount = balance - fee
-      // If getFeeForMessage returned null, we do a simulation-based approach
-      let transferAmount: number;
-      
-      if (fee !== null) {
-        transferAmount = balance - fee;
-        console.log('[Mint] Calculated transfer amount (lamports):', transferAmount);
-        console.log('[Mint] Calculated transfer amount (SOL):', transferAmount / 1e9);
-      } else {
-        // Fallback: simulate with full balance and let error tell us the deficit
-        console.log('[Mint] Simulating full-balance transaction to extract fee from error...');
-        const testTx = new VersionedTransaction(testMessage);
-        const sim = await connection.simulateTransaction(testTx);
-        console.log('[Mint] Simulation result:', sim.value);
-        
-        if (!sim.value.err) {
-          // Somehow it passed? Transfer everything (shouldn't happen with fees)
-          transferAmount = balance;
-          console.log('[Mint] Simulation passed unexpectedly, using full balance');
-        } else {
-          const logs = sim.value.logs?.join(' ') || '';
-          console.log('[Mint] Simulation logs:', logs);
-          const match = logs.match(/insufficient lamports (\d+), need (\d+)/);
-          if (match) {
-            const have = parseInt(match[1]);
-            const need = parseInt(match[2]);
-            const requiredFee = need - have;
-            transferAmount = balance - requiredFee;
-            console.log('[Mint] Extracted fee from simulation error (lamports):', requiredFee);
-            console.log('[Mint] Adjusted transfer amount (lamports):', transferAmount);
-          } else {
-            transferAmount = Math.max(0, balance - 5000);
-            console.log('[Mint] Could not parse fee from logs, using safe fallback:', transferAmount);
-          }
+        if (transferAmount <= 0) {
+          throw new Error('Insufficient balance for transaction fees.');
         }
-      }
 
-      if (transferAmount <= 0) {
-        console.log('[Mint] Transfer amount <= 0 after fee deduction. Balance:', balance, 'Fee:', fee);
-        throw new Error('Insufficient balance for transaction fees.');
-      }
+        // Always get fresh blockhash on retry
+        console.log('[Mint] Getting fresh blockhash...');
+        const bh = await connection.getLatestBlockhash();
+        lastBlockhash = bh.blockhash;
+        lastValidBlockHeight = bh.lastValidBlockHeight;
+        console.log('[Mint] Blockhash:', lastBlockhash);
 
-      // Step 3: Build final transaction with exact transfer amount
-      console.log('[Mint] Building FINAL transaction with transfer amount:', transferAmount);
-      const finalTransfer = SystemProgram.transfer({
-        fromPubkey: senderPubKey,
-        toPubkey: recipientPubKey,
-        lamports: transferAmount,
-      });
-
-      const finalMessage = new TransactionMessage({
-        payerKey: senderPubKey,
-        recentBlockhash: blockhash,
-        instructions: [finalTransfer],
-      }).compileToV0Message();
-
-      const finalTransaction = new VersionedTransaction(finalMessage);
-      console.log('[Mint] Final transaction compiled');
-
-      // Step 4: Simulate final transaction to confirm it will succeed
-      console.log('[Mint] Simulating FINAL transaction...');
-      const finalSim = await connection.simulateTransaction(finalTransaction);
-      console.log('[Mint] Final simulation err:', finalSim.value.err);
-      console.log('[Mint] Final simulation logs:', finalSim.value.logs);
-      
-      if (finalSim.value.err) {
-        console.error('[Mint] Final simulation failed:', finalSim.value.err, finalSim.value.logs);
-        throw new Error('Transaction simulation failed. ' + (finalSim.value.logs?.join(' ') || ''));
-      }
-      console.log('[Mint] Final simulation passed!');
-
-      // Step 5: Sign and send
-      setFeedback({ type: 'info', message: 'Please confirm the transaction in your wallet...' });
-      console.log('[Mint] Requesting wallet signature...');
-      
-      let signature: string;
-      
-      if (provider.signTransaction) {
-        console.log('[Mint] Using provider.signTransaction');
-        const signed = await provider.signTransaction(finalTransaction);
-        console.log('[Mint] Transaction signed by wallet');
-        signature = await connection.sendTransaction(signed);
-        console.log('[Mint] Transaction sent. Signature:', signature);
-      } else if (provider.request) {
-        console.log('[Mint] Using provider.request signAndSendTransaction');
-        const resp = await provider.request({
-          method: "signAndSendTransaction",
-          params: { 
-            message: Buffer.from(finalTransaction.message.serialize()).toString('base64')
-          }
+        // Build unsigned transaction
+        const transferIx = SystemProgram.transfer({
+          fromPubkey: senderPubKey,
+          toPubkey: recipientPubKey,
+          lamports: transferAmount,
         });
-        console.log('[Mint] signAndSendTransaction response:', resp);
-        signature = resp?.signature || resp;
-      } else {
-        throw new Error("Wallet does not support signing.");
+
+        const message = new TransactionMessage({
+          payerKey: senderPubKey,
+          recentBlockhash: lastBlockhash,
+          instructions: [transferIx],
+        }).compileToV0Message();
+
+        const transaction = new VersionedTransaction(message);
+        console.log('[Mint] Unsigned transaction built. Instructions:', message.compiledInstructions.length);
+
+        // Ask wallet to sign (wallet may inject ComputeBudget/priority fee instructions)
+        setFeedback({ type: 'info', message: attempts > 1 ? 'Adjusting for wallet fees... Please confirm again.' : 'Please confirm the transaction in your wallet...' });
+        console.log('[Mint] Asking wallet to sign...');
+        
+        let signed: any;
+        try {
+          if (provider.signTransaction) {
+            signed = await provider.signTransaction(transaction);
+          } else if (provider.request) {
+            // For wallets that only support signAndSend, we can't simulate after signing.
+            // We send it directly and hope the wallet handles fee logic internally.
+            console.log('[Mint] Wallet only supports signAndSendTransaction, sending directly...');
+            const resp = await provider.request({
+              method: "signAndSendTransaction",
+              params: { 
+                message: Buffer.from(message.serialize()).toString('base64')
+              }
+            });
+            signature = resp?.signature || resp;
+            console.log('[Mint] signAndSendTransaction response:', signature);
+            break; // exit loop, go straight to confirmation
+          } else {
+            throw new Error("Wallet does not support signing.");
+          }
+        } catch (signErr: any) {
+          console.error('[Mint] Wallet rejected signing:', signErr);
+          throw new Error('Transaction rejected in wallet.');
+        }
+
+        // Inspect what wallet added
+        console.log('[Mint] Wallet signed. Signed tx instructions count:', signed.message.compiledInstructions.length);
+        signed.message.compiledInstructions.forEach((ix: any, i: number) => {
+          console.log(`[Mint]   Instruction ${i}: programIdIndex=${ix.programIdIndex}, accountKeyIndexes=[${ix.accountKeyIndexes?.join(',')}], dataLength=${ix.data?.length}`);
+        });
+
+        // Simulate the SIGNED transaction to catch wallet-injected fee issues
+        console.log('[Mint] Simulating SIGNED transaction...');
+        const sim = await connection.simulateTransaction(signed);
+        console.log('[Mint] Simulation err:', sim.value.err);
+        console.log('[Mint] Simulation logs:', sim.value.logs);
+
+        if (!sim.value.err) {
+          // Simulation passed — send it
+          console.log('[Mint] Simulation passed! Sending raw transaction...');
+          signature = await connection.sendRawTransaction(signed.serialize(), {
+            skipPreflight: true, // already simulated successfully
+            maxRetries: 3,
+          });
+          console.log('[Mint] Transaction sent. Signature:', signature);
+          break; // success, exit loop
+        }
+
+        // Simulation failed — analyze logs
+        const logs = sim.value.logs?.join(' ') || '';
+        const match = logs.match(/insufficient lamports (\d+), need (\d+)/);
+        
+        if (match) {
+          const have = parseInt(match[1]);
+          const need = parseInt(match[2]);
+          const deficit = need - have;
+          console.log(`[Mint] Insufficient lamports detected. Have: ${have}, Need: ${need}, Deficit: ${deficit}`);
+          
+          transferAmount = balance - deficit;
+          console.log('[Mint] Adjusted transferAmount to:', transferAmount);
+          
+          if (transferAmount <= 0) {
+            throw new Error('Insufficient balance for transaction fees after wallet fee injection.');
+          }
+          continue; // retry with adjusted amount
+        }
+
+        // Unknown simulation error — can't recover
+        console.error('[Mint] Unhandled simulation error. Logs:', logs);
+        throw new Error('Transaction simulation failed: ' + logs);
+      }
+
+      if (!signature) {
+        throw new Error('Failed to obtain transaction signature after multiple attempts.');
       }
 
       setFeedback({ type: 'info', message: 'Verifying transaction on blockchain...' });
@@ -351,7 +342,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
       
       await connection.confirmTransaction({
         signature,
-        blockhash,
+        blockhash: lastBlockhash,
         lastValidBlockHeight
       });
 
