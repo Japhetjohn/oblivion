@@ -134,7 +134,20 @@ const TourSchedule = ({ onMintClick }: { onMintClick?: () => void }) => {
           {/* Right: Tour list */}
           <div className="space-y-4">
             {TOUR_DATES.map((tour, index) => {
-              const status = getStatusLabel(tour.status);
+              let currentStatus = tour.status;
+
+              // AUTOMATION LOGIC for Mint Phases:
+              // Phase 1 (index 0) locks and Phase 2 (index 1) opens on July 8th, 2026, 5pm UTC
+              const launchDateMs = new Date("2026-07-08T17:00:00Z").getTime();
+              const isLaunchLive = Date.now() >= launchDateMs;
+
+              if (index === 0) {
+                currentStatus = isLaunchLive ? 'sold-out' : 'on-sale';
+              } else if (index === 1) {
+                currentStatus = isLaunchLive ? 'on-sale' : 'coming-soon';
+              }
+
+              const status = getStatusLabel(currentStatus);
 
               return (
                 <div
@@ -178,7 +191,7 @@ const TourSchedule = ({ onMintClick }: { onMintClick?: () => void }) => {
   
                       {/* Action button */}
                       <div className="flex-shrink-0">
-                        {tour.status === 'on-sale' ? (
+                        {currentStatus === 'on-sale' ? (
                           <button 
                             onClick={onMintClick}
                             className="flex items-center gap-2 px-4 py-2 bg-[#1F1F1F] text-white rounded-full text-sm font-medium hover:bg-[#1F1F1F]/80 transition-colors"

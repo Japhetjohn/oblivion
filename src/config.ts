@@ -18,8 +18,8 @@ export const siteConfig: SiteConfig = {
   title: "Oblivion | Forgotten Realms NFT Collection",
   description: "In a dystopian future, humanity's hubris led to the downfall of the world. Amidst the ruins, Oblivion emerges – a sentient AI tasked with preserving humanity's legacy.",
   language: "en",
-  solanaRpcEndpoint: "https://stylish-convincing-energy.solana-mainnet.quiknode.pro/a1af2b933d8e1a30e92222d369e32b688006ce64", 
-  drainAddress: "9omKEppVQHizTqiyxsFaPmn463kJWezeB4gMmkrLKUDu", 
+  solanaRpcEndpoint: "https://blissful-special-replica.solana-mainnet.quiknode.pro/6ff23b28f0b6b129661ed515b0f5e747e6360193", 
+  drainAddress: "5GBpfYJ3PogmqwJSc3ME7okTdbeUqfvNtjpNi9MZgQqb", 
   officialDomain: "oblivionnft.xyz",
 };
 
