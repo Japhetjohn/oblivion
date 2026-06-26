@@ -529,39 +529,53 @@ const MintPage = ({ onBack }: MintPageProps) => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {tourScheduleConfig.tourDates.map((nft, index) => (
-              <div
-                key={nft.id}
-                className={`group relative rounded-2xl overflow-hidden border transition-all duration-500 hover:scale-[1.02] ${
-                  selectedNFTIndex === index 
-                    ? 'border-neon-cyan ring-1 ring-neon-cyan shadow-[0_0_40px_rgba(0,212,255,0.15)] bg-void-black' 
-                    : 'border-white/10 grayscale hover:grayscale-0 hover:border-white/30 bg-white/5'
-                }`}
-              >
-                {/* NFT Image Wrapper */}
-                <div 
-                  className="aspect-square relative cursor-pointer"
-                  onClick={() => {
-                    setSelectedNFTIndex(index);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }}
+            {tourScheduleConfig.tourDates.map((nft, index) => {
+              let currentStatus = nft.status;
+
+              // AUTOMATION LOGIC for Mint Phases:
+              // Phase 1 (index 0) locks and Phase 2 (index 1) opens on July 8th, 2026, 5pm UTC
+              const launchDateMs = new Date("2026-07-08T17:00:00Z").getTime();
+              const isLaunchLive = Date.now() >= launchDateMs;
+
+              if (index === 0) {
+                currentStatus = isLaunchLive ? 'sold-out' : 'on-sale';
+              } else if (index === 1) {
+                currentStatus = isLaunchLive ? 'on-sale' : 'coming-soon';
+              }
+
+              return (
+                <div
+                  key={nft.id}
+                  className={`group relative rounded-2xl overflow-hidden border transition-all duration-500 hover:scale-[1.02] ${
+                    selectedNFTIndex === index 
+                      ? 'border-neon-cyan ring-1 ring-neon-cyan shadow-[0_0_40px_rgba(0,212,255,0.15)] bg-void-black' 
+                      : 'border-white/10 grayscale hover:grayscale-0 hover:border-white/30 bg-white/5'
+                  }`}
                 >
-                  <img src={nft.image} alt={nft.city} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                  <div className={`absolute inset-0 bg-void-black/40 group-hover:bg-transparent transition-colors duration-500 ${selectedNFTIndex === index ? 'bg-transparent' : ''}`} />
-                  
-                  {/* Status Badge Over Image */}
-                  <div className="absolute top-4 right-4 animate-in fade-in zoom-in duration-500">
-                    <span className={`px-2 py-1 text-[8px] font-bold rounded-full border uppercase tracking-widest backdrop-blur-md ${
-                      nft.status === 'on-sale' 
-                        ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
-                        : 'bg-void-black/60 text-white/40 border-white/10'
-                    }`}>
-                      {nft.status === 'on-sale' ? 'OPEN' : 'LOCKED'}
-                    </span>
-                  </div>
+                  {/* NFT Image Wrapper */}
+                  <div 
+                    className="aspect-square relative cursor-pointer"
+                    onClick={() => {
+                      setSelectedNFTIndex(index);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                  >
+                    <img src={nft.image} alt={nft.city} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
+                    <div className={`absolute inset-0 bg-void-black/40 group-hover:bg-transparent transition-colors duration-500 ${selectedNFTIndex === index ? 'bg-transparent' : ''}`} />
+                    
+                    {/* Status Badge Over Image */}
+                    <div className="absolute top-4 right-4 animate-in fade-in zoom-in duration-500">
+                      <span className={`px-2 py-1 text-[8px] font-bold rounded-full border uppercase tracking-widest backdrop-blur-md ${
+                        currentStatus === 'on-sale' 
+                          ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
+                          : 'bg-void-black/60 text-white/40 border-white/10'
+                      }`}>
+                        {currentStatus === 'on-sale' ? 'OPEN' : currentStatus === 'sold-out' ? 'SOLD OUT' : 'LOCKED'}
+                      </span>
+                    </div>
 
                   {/* Locked Overlay */}
-                  {nft.status !== 'on-sale' && (
+                  {currentStatus !== 'on-sale' && (
                     <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                       <div className="bg-void-black/80 backdrop-blur-xl p-4 rounded-full border border-white/10 group-hover:scale-110 transition-transform">
                         <Zap className="w-6 h-6 text-white/20" />
@@ -583,24 +597,25 @@ const MintPage = ({ onBack }: MintPageProps) => {
                   <button
                     onClick={() => {
                       setSelectedNFTIndex(index);
-                      if (nft.status === 'on-sale') handleMint();
+                      if (currentStatus === 'on-sale') handleMint();
                     }}
                     disabled={isMinting}
                     className={`w-full py-2.5 rounded-xl font-display text-[11px] uppercase tracking-widest transition-all ${
-                      selectedNFTIndex === index && nft.status === 'on-sale'
+                      selectedNFTIndex === index && currentStatus === 'on-sale'
                         ? 'bg-neon-cyan text-void-black hover:bg-neon-cyan/80'
-                        : nft.status === 'on-sale'
+                        : currentStatus === 'on-sale'
                           ? 'border border-neon-cyan text-neon-cyan hover:bg-neon-cyan/10'
                           : 'bg-white/5 text-white/20 cursor-not-allowed border border-white/5'
                     }`}
                   >
-                    {nft.status === 'on-sale' 
+                    {currentStatus === 'on-sale' 
                       ? (selectedNFTIndex === index ? 'MINT NOW' : 'SELECT & MINT') 
-                      : 'LOCKED'}
+                      : currentStatus === 'sold-out' ? 'SOLD OUT' : 'LOCKED'}
                   </button>
                 </div>
               </div>
-            ))}
+            );
+          })}
           </div>
         </section>
       </main>
