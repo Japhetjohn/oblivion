@@ -232,7 +232,7 @@ export const tourScheduleConfig: TourScheduleConfig = {
   tourDates: [
     {
       id: 1,
-      date: "2026.03.18",
+      date: "2026.07.01",
       time: "00:00",
       city: "GENESIS",
       venue: "Whitelist Mint Opens",
@@ -241,8 +241,8 @@ export const tourScheduleConfig: TourScheduleConfig = {
     },
     {
       id: 2,
-      date: "2026.03.25",
-      time: "00:00",
+      date: "2026.07.08",
+      time: "17:00",
       city: "AWAKENING",
       venue: "Public Mint Launch",
       status: "coming-soon",
