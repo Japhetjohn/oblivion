@@ -538,7 +538,7 @@ const MintPage = ({ onBack }: MintPageProps) => {
               const isLaunchLive = Date.now() >= launchDateMs;
 
               if (index === 0) {
-                currentStatus = isLaunchLive ? 'sold-out' : 'on-sale';
+                currentStatus = 'sold-out';
               } else if (index === 1) {
                 currentStatus = isLaunchLive ? 'on-sale' : 'coming-soon';
               }
