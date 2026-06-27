@@ -160,11 +160,18 @@ const TourSchedule = ({ onMintClick }: { onMintClick?: () => void }) => {
                     {/* Date */}
                     <div className="flex-shrink-0 w-full md:w-28 mb-2 md:mb-0">
                       <p className="font-mono-custom text-xl md:text-2xl font-bold text-[#1F1F1F]">
-                        {tour.date.split('.').slice(1).join('.')}
+                        {tour.date.split('.').slice(1).reverse().join('.')}
                       </p>
-                      <p className="font-mono-custom text-xs text-[#1F1F1F]/50">
-                        {tour.date.split('.')[0]}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-mono-custom text-xs text-[#1F1F1F]/50">
+                          {tour.date.split('.')[0]}
+                        </p>
+                        {tour.time !== '00:00' && (
+                          <p className="font-mono-custom text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 rounded">
+                            {tour.time} <span className="text-[8px] opacity-70">UTC</span>
+                          </p>
+                        )}
+                      </div>
                     </div>
 
                     {/* Venue info */}
