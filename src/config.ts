@@ -250,7 +250,7 @@ export const tourScheduleConfig: TourScheduleConfig = {
     },
     {
       id: 3,
-      date: "2026.04.01",
+      date: "2026.07.15",
       time: "00:00",
       city: "REVELATION",
       venue: "Holder Benefits Reveal",
@@ -259,7 +259,7 @@ export const tourScheduleConfig: TourScheduleConfig = {
     },
     {
       id: 4,
-      date: "2026.04.08",
+      date: "2026.07.22",
       time: "00:00",
       city: "EXPANSION",
       venue: "Forgotten Realms Expansion",
